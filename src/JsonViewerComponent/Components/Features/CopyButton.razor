@@ -1,0 +1,84 @@
+﻿@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+
+<button @onclick="HandleCopyClick"
+        class="@ButtonClass"
+        title="@Title"
+        disabled="@IsDisabled">
+    <Icon Name="@IconName" />
+    @if (!string.IsNullOrEmpty(ButtonText))
+    {
+        <span class="ms-1">@ButtonText</span>
+    }
+</button>
+
+@code {
+    /// <summary>
+    /// محتوای متنی که باید کپی شود
+    /// </summary>
+    [Parameter]
+    public string Content { get; set; } = string.Empty;
+
+    /// <summary>
+    /// متن Tooltip دکمه
+    /// </summary>
+    [Parameter]
+    public string Title { get; set; } = "Copy";
+
+    /// <summary>
+    /// کلاس‌های CSS دکمه
+    /// </summary>
+    [Parameter]
+    public string ButtonClass { get; set; } = "btn btn-sm btn-light mb-2";
+
+    /// <summary>
+    /// نام آیکون (استفاده از کامپوننت Icon)
+    /// </summary>
+    [Parameter]
+    public string IconName { get; set; } = "clipboard";
+
+    /// <summary>
+    /// متن اختیاری کنار آیکون
+    /// </summary>
+    [Parameter]
+    public string ButtonText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// رویداد موفقیت - پیام به Parent برمی‌گردد
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> OnCopySuccess { get; set; }
+
+    /// <summary>
+    /// رویداد خطا - پیام خطا به Parent برمی‌گردد
+    /// </summary>
+    [Parameter]
+    public EventCallback<string> OnCopyError { get; set; }
+
+    /// <summary>
+    /// دکمه زمانی که محتوا خالی است غیرفعال می‌شود
+    /// </summary>
+    private bool IsDisabled => string.IsNullOrEmpty(Content);
+
+    /// <summary>
+    /// مدیریت کلیک دکمه کپی
+    /// </summary>
+    private async Task HandleCopyClick()
+    {
+        if (string.IsNullOrEmpty(Content))
+            return;
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", Content);
+
+            if (OnCopySuccess.HasDelegate)
+                await OnCopySuccess.InvokeAsync("Copied to clipboard");
+        }
+        catch (Exception ex)
+        {
+            if (OnCopyError.HasDelegate)
+                await OnCopyError.InvokeAsync($"Failed to copy: {ex.Message}");
+        }
+    }
+}
