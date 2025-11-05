@@ -1,0 +1,153 @@
+﻿@using Microsoft.AspNetCore.Components
+@using JsonViewerComponent.Models
+@using JsonViewerComponent.Components.Shared
+
+<!-- Search Container -->
+@if (IsVisible)
+{
+    <div class="json-search-container">
+        <!-- Navigation buttons (shown only when search has results) -->
+        @if (!string.IsNullOrEmpty(SearchText) && Result.MatchCount > 0)
+        {
+            <div class="json-navigation-buttons me-2">
+                <button @onclick="OnNavigatePrevious"
+                        class="btn btn-sm btn-light"
+                        title="Previous match"
+                        disabled="@(!Result.CanNavigatePrevious)">
+                    <Icon Name="chevron-up" />
+                </button>
+                <span class="mx-1">@(Result.CurrentMatchIndex + 1)/@Result.MatchCount</span>
+                <button @onclick="OnNavigateNext"
+                        class="btn btn-sm btn-light"
+                        title="Next match"
+                        disabled="@(!Result.CanNavigateNext)">
+                    <Icon Name="chevron-down" />
+                </button>
+            </div>
+        }
+
+        <!-- Simple Text Search Box -->
+        <div class="json-text-search me-2">
+            <input value="@SearchText"
+                   @oninput="HandleSearchInput"
+                   placeholder="Search..."
+                   class="form-control form-control-sm" />
+            <button @onclick="HandleClear"
+                    class="btn btn-sm btn-light ms-1"
+                    title="Clear">
+                <Icon Name="x-lg" />
+            </button>
+        </div>
+
+        <!-- Search Status Box -->
+        @if (!string.IsNullOrEmpty(SearchText))
+        {
+            <div class="search-status alert alert-info py-1 px-2 mb-0 d-flex justify-content-between align-items-center">
+                <small>
+                    @if (Result.MatchCount > 0)
+                    {
+                        <text>Search "<strong>@SearchText</strong>": @Result.MatchCount matches found</text>
+                    }
+                    else
+                    {
+                        <text>No matches found for "<strong>@SearchText</strong>"</text>
+                    }
+                </small>
+                <button @onclick="HandleClear"
+                        class="btn btn-sm bg-light border border-primary ms-2"
+                        style="padding: 0.3rem 0.8rem;border: 1px solid #7239ea !important;color: #7239ea;text-align: center;"
+                        title="Clear Search">
+                    <Icon Name="x-lg" Size="12" />
+                </button>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public string SearchText { get; set; } = string.Empty;
+    [Parameter] public SearchResult Result { get; set; } = new();
+    [Parameter] public EventCallback<string> OnSearchTextChanged { get; set; }
+    [Parameter] public EventCallback OnNavigateNext { get; set; }
+    [Parameter] public EventCallback OnNavigatePrevious { get; set; }
+    [Parameter] public EventCallback OnClear { get; set; }
+
+    private async Task HandleSearchInput(ChangeEventArgs e)
+    {
+        var newValue = e.Value?.ToString() ?? string.Empty;
+        await OnSearchTextChanged.InvokeAsync(newValue);
+    }
+
+    private async Task HandleClear()
+    {
+        await OnClear.InvokeAsync();
+    }
+}
+
+<style>
+    /* Search Container */
+    .json-search-container {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    /* Text Search Box */
+    .json-text-search {
+        display: flex;
+        align-items: center;
+    }
+
+        .json-text-search input {
+            width: 300px;
+            direction: ltr;
+        }
+
+    /* Navigation Buttons */
+    .json-navigation-buttons {
+        display: flex;
+        align-items: center;
+    }
+
+    /* Search Status */
+    .search-status {
+        direction: ltr;
+        font-size: 15px;
+    }
+
+    /* Highlight Styles */
+    mark {
+        background-color: yellow;
+        padding: 0 2px;
+        border-radius: 2px;
+        font-weight: bold;
+    }
+
+        mark.current-match {
+            background-color: #f9b54a;
+            color: black;
+        }
+
+    .highlight-pulse {
+        animation: pulse 1s;
+    }
+
+    @@keyframes pulse {
+        0%
+
+    {
+        background-color: #ff9900;
+    }
+
+    50% {
+        background-color: #ffcc00;
+    }
+
+    100% {
+        background-color: #ff9900;
+    }
+
+    }
+</style>

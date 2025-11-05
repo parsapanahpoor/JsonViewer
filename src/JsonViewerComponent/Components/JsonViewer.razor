@@ -123,180 +123,22 @@
         </div>
     }
 
-    <!-- Statistics Panel for normal mode -->
-    @if (showStatsPanel && !isFullScreen)
-    {
-        <div class="stats-panel alert alert-info py-2 px-3 mb-2" style="margin-left: 57px;">
-            <div class="d-flex justify-content-between align-items-center">
-                <h6 class="m-0">JSON Statistics</h6>
-                <button @onclick="@ToggleStats" class="btn btn-sm btn-light" title="Close statistics">
-                    <Icon Name="x-lg" />
-                </button>
-            </div>
-            <hr class="my-2">
-            <div class="stats-content">
-                @if (jsonStats != null)
-                {
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <span class="stat-label">Total Properties:</span>
-                            <span class="stat-value">@jsonStats.TotalProperties</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Objects:</span>
-                            <span class="stat-value">@jsonStats.ObjectCount</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Arrays:</span>
-                            <span class="stat-value">@jsonStats.ArrayCount</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Strings:</span>
-                            <span class="stat-value">@jsonStats.StringCount</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Numbers:</span>
-                            <span class="stat-value">@jsonStats.NumberCount</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Booleans:</span>
-                            <span class="stat-value">@jsonStats.BooleanCount</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Nulls:</span>
-                            <span class="stat-value">@jsonStats.NullCount</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Max Depth:</span>
-                            <span class="stat-value">@jsonStats.MaxDepth</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Raw Size:</span>
-                            <span class="stat-value">@FormatBytes(jsonStats.RawSize)</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Formatted Size:</span>
-                            <span class="stat-value">@FormatBytes(jsonStats.FormattedSize)</span>
-                        </div>
-                        @if (jsonStats.ObjectCount > 0)
-                        {
-                            <div class="stat-item">
-                                <span class="stat-label">Avg Props/Object:</span>
-                                <span class="stat-value">@Math.Round(jsonStats.AvgPropertiesPerObject, 2)</span>
-                            </div>
-                        }
-                        @if (jsonStats.ArrayCount > 0)
-                        {
-                            <div class="stat-item">
-                                <span class="stat-label">Avg Array Length:</span>
-                                <span class="stat-value">@Math.Round(jsonStats.AvgArrayLength, 2)</span>
-                            </div>
-                        }
-                    </div>
-                }
-                else
-                {
-                    <div class="text-muted">No statistics available</div>
-                }
-            </div>
-        </div>
-    }
-
     <!-- Main content area with JSON and vertical buttons -->
     <div class="json-content-wrapper d-flex">
 
-        <!-- Statistics Panel for full screen mode -->
-        @if (showStatsPanel && isFullScreen)
-        {
-            <div class="stats-panel-vertical">
-                <div class="stats-header d-flex justify-content-between align-items-center p-2">
-                    <h6 class="m-0">JSON Statistics</h6>
-                    <button @onclick="@ToggleStats" class="btn btn-sm btn-light" title="Close statistics">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="stats-content p-2">
-                    @if (jsonStats != null)
-                    {
-                        <div class="stats-list mt-2">
-                            <div class="stat-item">
-                                <span class="stat-label">Total Properties:</span>
-                                <span class="stat-value">@jsonStats.TotalProperties</span>
-                            </div>
-                            <hr class="my-2" />
-                            <div class="stat-item">
-                                <span class="stat-label">Objects:</span>
-                                <span class="stat-value">@jsonStats.ObjectCount</span>
-                            </div>
-                            <hr class="my-2" />
-                            <div class="stat-item">
-                                <span class="stat-label">Arrays:</span>
-                                <span class="stat-value">@jsonStats.ArrayCount</span>
-                            </div>
-                            <hr class="my-2" />
-                            <div class="stat-item">
-                                <span class="stat-label">Strings:</span>
-                                <span class="stat-value">@jsonStats.StringCount</span>
-                            </div>
-                            <hr class="my-2" />
-                            <div class="stat-item">
-                                <span class="stat-label">Numbers:</span>
-                                <span class="stat-value">@jsonStats.NumberCount</span>
-                            </div>
-                            <hr class="my-2" />
-                            <div class="stat-item">
-                                <span class="stat-label">Booleans:</span>
-                                <span class="stat-value">@jsonStats.BooleanCount</span>
-                            </div>
-                            <hr class="my-2" />
-                            <div class="stat-item">
-                                <span class="stat-label">Nulls:</span>
-                                <span class="stat-value">@jsonStats.NullCount</span>
-                            </div>
-                            <hr class="my-2" />
-                            <div class="stat-item">
-                                <span class="stat-label">Max Depth:</span>
-                                <span class="stat-value">@jsonStats.MaxDepth</span>
-                            </div>
-                            <hr class="my-2" />
-                            <div class="stat-item">
-                                <span class="stat-label">Raw Size:</span>
-                                <span class="stat-value">@FormatBytes(jsonStats.RawSize)</span>
-                            </div>
-                            <hr class="my-2" />
-                            <div class="stat-item">
-                                <span class="stat-label">Formatted Size:</span>
-                                <span class="stat-value">@FormatBytes(jsonStats.FormattedSize)</span>
-                            </div>
-                            @if (jsonStats.ObjectCount > 0)
-                            {
-                                <hr class="my-2" />
-                                <div class="stat-item">
-                                    <span class="stat-label">Avg Props/Object:</span>
-                                    <span class="stat-value">@Math.Round(jsonStats.AvgPropertiesPerObject, 2)</span>
-                                </div>
-                            }
-                            @if (jsonStats.ArrayCount > 0)
-                            {
-                                <hr class="my-2" />
-                                <div class="stat-item">
-                                    <span class="stat-label">Avg Array Length:</span>
-                                    <span class="stat-value">@Math.Round(jsonStats.AvgArrayLength, 2)</span>
-                                </div>
-                            }
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="text-muted">No statistics available</div>
-                    }
-                </div>
-            </div>
-        }
+        <!-- Base64 Tools Component -->
+        <Base64Tools IsVisible="@showBase64Modal"
+                     IsVisibleChanged="@OnBase64VisibilityChanged"
+                     OnUseResult="@OnBase64ResultUsed"
+                     OnNotification="@HandleNotification"
+                     InitialText="@(GetSelectedText() ?? "")" />
 
+        <!-- Statistics Component -->
+        <JsonStatistics Statistics="jsonStats"
+                        IsVisible="showStatsPanel"
+                        IsFullScreen="isFullScreen"
+                        OnClose="@(() => showStatsPanel = false)" />
 
-
-        <!-- JSON Container -->
         <!-- JSON Container -->
         <div class="json-container @(isFullScreen ? "full-screen-json" : "") flex-grow-1 @((showStatsPanel && isFullScreen) ? " ms-2" : "")" style="direction:ltr; text-align:left;" @ref="jsonContainerRef">
 
@@ -365,12 +207,6 @@
     </div>
 </div>
 
-<!-- Base64 Tools Component -->
-<Base64Tools IsVisible="@showBase64Modal"
-             IsVisibleChanged="@OnBase64VisibilityChanged"
-             OnUseResult="@OnBase64ResultUsed"
-             OnNotification="@HandleNotification"
-             InitialText="@(GetSelectedText() ?? "")" />
 
 @code {
     #region Parameters
@@ -416,8 +252,9 @@
 
     #region Statistics Panel - JSON statistics and analysis
     private bool showStatsPanel = false;
-    private JsonStatistics jsonStats;
+    private JsonStats jsonStats;  
     #endregion
+
 
     #region Type Filtering - Data type filter functionality
     private bool showTypeFilter = false;
@@ -1256,7 +1093,7 @@ private void CalculateStatistics()
         return;
     }
 
-    jsonStats = new JsonStatistics();
+    jsonStats = new JsonStats();
 
     jsonStats.RawSize = System.Text.Encoding.UTF8.GetByteCount(JsonData);
     jsonStats.FormattedSize = System.Text.Encoding.UTF8.GetByteCount(jsonToken.ToString(Formatting.Indented));
@@ -1669,26 +1506,6 @@ private class ValidationResult
     public int LinePosition { get; set; }
 }
 
-private class JsonStatistics
-{
-    public int TotalProperties { get; set; }
-    public int ObjectCount { get; set; }
-    public int ArrayCount { get; set; }
-    public int ArrayItems { get; set; }
-    public int StringCount { get; set; }
-    public int NumberCount { get; set; }
-    public int BooleanCount { get; set; }
-    public int NullCount { get; set; }
-    public int MaxDepth { get; set; }
-    public long RawSize { get; set; }
-    public long FormattedSize { get; set; }
-    public double AvgPropertiesPerObject { get; set; }
-    public double AvgArrayLength { get; set; }
-    public int TotalStringLength { get; set; }
-    public int MaxStringLength { get; set; }
-    public int TotalNumberLength { get; set; }
-    public Dictionary<string, int> PropertyCounts { get; set; } = new Dictionary<string, int>();
-}
 #endregion
 
 #region Show Notification
@@ -1980,82 +1797,6 @@ private async Task ShowNotification(string message, string type = "info")
     .dropdown-header {
         font-weight: bold;
         color: #495057;
-    }
-    /* #endregion */
-
-    /* #region Statistics Panel - Statistics display panel */
-    .stats-panel {
-        direction: ltr;
-        font-size: 14px;
-        margin-bottom: 10px;
-    }
-
-    .stats-content {
-        overflow-y: auto;
-    }
-
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-        gap: 8px 12px;
-    }
-
-    .stat-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-        .stat-item.full-width {
-            grid-column: 1 / -1;
-        }
-
-    .stat-label {
-        font-weight: 500;
-        color: #495057;
-        font-size: 13px;
-    }
-
-    .stat-value {
-        font-weight: bold;
-        color: #0c5460;
-        font-size: 13px;
-    }
-
-    .stats-panel-vertical {
-        width: 280px;
-        background-color: #d1ecf1;
-        border: 1px solid #bee5eb;
-        border-radius: 4px;
-        display: flex;
-        flex-direction: column;
-        max-height: calc(100vh - 120px);
-        overflow: hidden;
-    }
-
-    .stats-header {
-        background-color: #bee5eb;
-        border-bottom: 1px solid #abdde5;
-    }
-
-    .stats-list {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .stats-content::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .stats-content::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-radius: 3px;
-    }
-
-    .stats-content::-webkit-scrollbar-thumb {
-        background: #c1c1c1;
-        border-radius: 3px;
     }
     /* #endregion */
 

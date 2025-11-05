@@ -1,0 +1,279 @@
+﻿@* Statistics Panel Component for JSON Viewer *@
+
+@if (IsVisible && Statistics != null)
+{
+    @if (IsFullScreen)
+    {
+        <!-- Vertical Statistics Panel for Full Screen Mode -->
+        <div class="stats-panel-vertical">
+            <div class="stats-header d-flex justify-content-between align-items-center p-2">
+                <h6 class="m-0">JSON Statistics</h6>
+                <button @onclick="HandleClose" class="btn btn-sm btn-light" title="Close statistics">
+                    <Icon Name="x-lg" />
+                </button>
+            </div>
+            <div class="stats-content p-2">
+                <div class="stats-list mt-2">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Properties:</span>
+                        <span class="stat-value">@Statistics.TotalProperties</span>
+                    </div>
+                    <hr class="my-2" />
+                    <div class="stat-item">
+                        <span class="stat-label">Objects:</span>
+                        <span class="stat-value">@Statistics.ObjectCount</span>
+                    </div>
+                    <hr class="my-2" />
+                    <div class="stat-item">
+                        <span class="stat-label">Arrays:</span>
+                        <span class="stat-value">@Statistics.ArrayCount</span>
+                    </div>
+                    <hr class="my-2" />
+                    <div class="stat-item">
+                        <span class="stat-label">Strings:</span>
+                        <span class="stat-value">@Statistics.StringCount</span>
+                    </div>
+                    <hr class="my-2" />
+                    <div class="stat-item">
+                        <span class="stat-label">Numbers:</span>
+                        <span class="stat-value">@Statistics.NumberCount</span>
+                    </div>
+                    <hr class="my-2" />
+                    <div class="stat-item">
+                        <span class="stat-label">Booleans:</span>
+                        <span class="stat-value">@Statistics.BooleanCount</span>
+                    </div>
+                    <hr class="my-2" />
+                    <div class="stat-item">
+                        <span class="stat-label">Nulls:</span>
+                        <span class="stat-value">@Statistics.NullCount</span>
+                    </div>
+                    <hr class="my-2" />
+                    <div class="stat-item">
+                        <span class="stat-label">Max Depth:</span>
+                        <span class="stat-value">@Statistics.MaxDepth</span>
+                    </div>
+                    <hr class="my-2" />
+                    <div class="stat-item">
+                        <span class="stat-label">Raw Size:</span>
+                        <span class="stat-value">@FormatBytes(Statistics.RawSize)</span>
+                    </div>
+                    <hr class="my-2" />
+                    <div class="stat-item">
+                        <span class="stat-label">Formatted Size:</span>
+                        <span class="stat-value">@FormatBytes(Statistics.FormattedSize)</span>
+                    </div>
+                    @if (Statistics.ObjectCount > 0)
+                    {
+                        <hr class="my-2" />
+                        <div class="stat-item">
+                            <span class="stat-label">Avg Props/Object:</span>
+                            <span class="stat-value">@Math.Round(Statistics.AvgPropertiesPerObject, 2)</span>
+                        </div>
+                    }
+                    @if (Statistics.ArrayCount > 0)
+                    {
+                        <hr class="my-2" />
+                        <div class="stat-item">
+                            <span class="stat-label">Avg Array Length:</span>
+                            <span class="stat-value">@Math.Round(Statistics.AvgArrayLength, 2)</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Horizontal Statistics Panel for Normal Mode -->
+        <div class="stats-panel alert alert-info py-2 px-3 mb-2" style="margin-left: 57px;">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="m-0">JSON Statistics</h6>
+                <button @onclick="HandleClose" class="btn btn-sm btn-light" title="Close statistics">
+                    <Icon Name="x-lg" />
+                </button>
+            </div>
+            <hr class="my-2">
+            <div class="stats-content">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">Total Properties:</span>
+                        <span class="stat-value">@Statistics.TotalProperties</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Objects:</span>
+                        <span class="stat-value">@Statistics.ObjectCount</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Arrays:</span>
+                        <span class="stat-value">@Statistics.ArrayCount</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Strings:</span>
+                        <span class="stat-value">@Statistics.StringCount</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Numbers:</span>
+                        <span class="stat-value">@Statistics.NumberCount</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Booleans:</span>
+                        <span class="stat-value">@Statistics.BooleanCount</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Nulls:</span>
+                        <span class="stat-value">@Statistics.NullCount</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Max Depth:</span>
+                        <span class="stat-value">@Statistics.MaxDepth</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Raw Size:</span>
+                        <span class="stat-value">@FormatBytes(Statistics.RawSize)</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Formatted Size:</span>
+                        <span class="stat-value">@FormatBytes(Statistics.FormattedSize)</span>
+                    </div>
+                    @if (Statistics.ObjectCount > 0)
+                    {
+                        <div class="stat-item">
+                            <span class="stat-label">Avg Props/Object:</span>
+                            <span class="stat-value">@Math.Round(Statistics.AvgPropertiesPerObject, 2)</span>
+                        </div>
+                    }
+                    @if (Statistics.ArrayCount > 0)
+                    {
+                        <div class="stat-item">
+                            <span class="stat-label">Avg Array Length:</span>
+                            <span class="stat-value">@Math.Round(Statistics.AvgArrayLength, 2)</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public JsonStats? Statistics { get; set; }
+
+    [Parameter]
+    public bool IsVisible { get; set; }
+
+    [Parameter]
+    public bool IsFullScreen { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private async Task HandleClose()
+    {
+        await OnClose.InvokeAsync();
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        string[] sizes = { "B", "KB", "MB", "GB" };
+        double len = bytes;
+        int order = 0;
+        while (len >= 1024 && order < sizes.Length - 1)
+        {
+            order++;
+            len = len / 1024;
+        }
+        return $"{len:0.##} {sizes[order]}";
+    }
+}
+
+<style>
+    /* Horizontal Stats Panel (Normal Mode) */
+    .stats-panel {
+        background-color: #d1ecf1;
+        border-color: #bee5eb;
+        border-radius: 4px;
+        font-size: 13px;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 10px;
+        margin-top: 10px;
+    }
+
+    .stat-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 5px 0;
+    }
+
+    .stat-label {
+        font-weight: 600;
+        color: #0c5460;
+    }
+
+    .stat-value {
+        font-weight: bold;
+        color: #004085;
+    }
+
+    /* Vertical Stats Panel (Full Screen Mode) */
+    .stats-panel-vertical {
+        position: fixed;
+        right: 0;
+        top: 0;
+        width: 250px;
+        height: 100vh;
+        background-color: #f8f9fa;
+        border-left: 2px solid #dee2e6;
+        z-index: 1050;
+        overflow-y: auto;
+        box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .stats-header {
+        background-color: #e9ecef;
+        border-bottom: 1px solid #dee2e6;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+
+    .stats-list {
+        display: flex;
+        flex-direction: column;
+    }
+
+        .stats-list .stat-item {
+            padding: 8px 0;
+        }
+
+    /* Dark Theme Support */
+    .json-viewer-container.dark-theme .stats-panel {
+        background-color: #1e3a4f;
+        border-color: #2c5066;
+        color: #e0e0e0;
+    }
+
+    .json-viewer-container.dark-theme .stat-label {
+        color: #9fc8e0;
+    }
+
+    .json-viewer-container.dark-theme .stat-value {
+        color: #4fc3f7;
+    }
+
+    .json-viewer-container.dark-theme .stats-panel-vertical {
+        background-color: #1a1a1a;
+        border-left-color: #333;
+        color: #e0e0e0;
+    }
+
+    .json-viewer-container.dark-theme .stats-header {
+        background-color: #2a2a2a;
+        border-bottom-color: #444;
+    }
+</style>
