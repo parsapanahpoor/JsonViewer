@@ -2,6 +2,8 @@
 @using System.Web
 @inject IJSRuntime jsRuntime
 @using JsonViewerComponent.Components.Features
+@using JsonViewerComponent.Services
+@using System.Text
 
 <div class="json-viewer-container @(isFullScreen ? "full-screen" : "") @(isDarkTheme ? "dark-theme" : "light-theme")" @ref="containerRef">
     <!-- Header with Simple Search Box -->
@@ -194,9 +196,10 @@
                         OnCopyError="@HandleCopyError" />
 
             <!-- Export Button -->
-            <button @onclick="@ExportToTxt" class="btn btn-sm btn-light mb-2" title="Export to TXT">
-                <Icon Name="download" />
-            </button>
+            <ExportButton JsonToken="@jsonToken"
+                          JsonData="@JsonData"
+                          OnNotification="@HandleNotification" />
+
 
             <!-- Theme Toggle Button -->
             <button @onclick="@ToggleTheme" class="btn btn-sm btn-light mb-2 toggle-theme-btn" title="Toggle theme">
@@ -1242,34 +1245,6 @@ private string GetValueClass(JToken token)
             await ShowNotification("Invalid JSON format");
         }
     }
-
-    private async Task ExportToTxt()
-    {
-        if (jsonToken == null)
-        {
-            await ShowNotification("No JSON data to export");
-            return;
-        }
-
-        try
-        {
-            string jsonText = jsonToken.ToString(Formatting.Indented);
-            string fileName = $"json_export_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
-            byte[] fileBytes = System.Text.Encoding.UTF8.GetBytes(jsonText);
-
-            await jsRuntime.InvokeVoidAsync("jsonViewerDownloadFile",
-                fileName,
-                "text/plain",
-                Convert.ToBase64String(fileBytes));
-
-            await ShowNotification("JSON exported successfully");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error exporting JSON: {ex.Message}");
-            await ShowNotification("Failed to export JSON");
-        }
-    }
     #endregion
 
     #region Copy to Clipboard Operations - Clipboard helper methods
@@ -1536,6 +1511,14 @@ private string GetValueClass(JToken token)
 
     #endregion
 
+    #region Export Helper Methods
+
+        private async Task HandleNotification((string message, string type) notification)
+        {
+            await ShowNotification(notification.message, notification.type);
+        }
+
+    #endregion
 }
 
 <style>

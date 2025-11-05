@@ -1,0 +1,122 @@
+﻿@using JsonViewerComponent.Services
+@inject IOptimizedFileDownloadService FileDownloadService
+
+<button @onclick="HandleExportClick"
+        class="@ButtonClass"
+        title="@Title"
+        disabled="@IsDisabled">
+    <Icon Name="@IconName" />
+    @if (!string.IsNullOrEmpty(ButtonText))
+    {
+        <span class="ms-1">@ButtonText</span>
+    }
+    @if (isExporting)
+    {
+        <span class="spinner-border spinner-border-sm ms-1" role="status">
+            <span class="visually-hidden">Exporting...</span>
+        </span>
+    }
+</button>
+
+@code {
+    // Parameters از JsonViewer
+    [Parameter] public JToken? JsonToken { get; set; }
+    [Parameter] public string? JsonData { get; set; }
+    [Parameter] public string FileNamePrefix { get; set; } = "json_export";
+    [Parameter] public EventCallback<(string message, string type)> OnNotification { get; set; }
+
+    // UI Customization
+    [Parameter] public string Title { get; set; } = "Export to file";
+    [Parameter] public string ButtonClass { get; set; } = "btn btn-sm btn-light mb-2";
+    [Parameter] public string IconName { get; set; } = "download";
+    [Parameter] public string ButtonText { get; set; } = string.Empty;
+
+    private bool IsDisabled => (JsonToken == null && string.IsNullOrEmpty(JsonData)) || isExporting;
+    private bool isExporting = false;
+    private const int LARGE_FILE_THRESHOLD = 5 * 1024 * 1024;
+
+    private async Task HandleExportClick()
+    {
+        if (JsonToken == null && string.IsNullOrEmpty(JsonData))
+            return;
+
+        isExporting = true;
+        StateHasChanged();
+
+        try
+        {
+            var content = GetExportContent();
+            var fileName = GetExportFileName();
+            var fullFileName = $"{fileName}.txt";
+            var contentSize = Encoding.UTF8.GetByteCount(content);
+
+            // Auto Detection
+            if (contentSize > LARGE_FILE_THRESHOLD)
+            {
+                await FileDownloadService.DownloadLargeFileAsync(
+                    fullFileName,
+                    content,
+                    "text/plain",
+                    chunkSize: 1024 * 1024
+                );
+            }
+            else
+            {
+                await FileDownloadService.DownloadFileAsync(fullFileName, content, "text/plain");
+            }
+
+            await SendNotification($"File '{fullFileName}' ({FormatBytes(contentSize)}) exported successfully", "success");
+        }
+        catch (Exception ex)
+        {
+            await SendNotification($"Failed to export: {ex.Message}", "error");
+        }
+        finally
+        {
+            isExporting = false;
+            StateHasChanged();
+        }
+    }
+
+    #region Helper Methods - داخل خود ExportButton
+
+    private string GetExportContent()
+    {
+        if (JsonToken != null)
+        {
+            return JsonToken.ToString(Newtonsoft.Json.Formatting.Indented);
+        }
+        return JsonData ?? string.Empty;
+    }
+
+    private string GetExportFileName()
+    {
+        var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        return $"{FileNamePrefix}_{timestamp}";
+    }
+
+    private async Task SendNotification(string message, string type)
+    {
+        if (OnNotification.HasDelegate)
+        {
+            await OnNotification.InvokeAsync((message, type));
+        }
+    }
+
+    private string FormatBytes(long bytes)
+    {
+        string[] suffixes = { "B", "KB", "MB", "GB" };
+        int counter = 0;
+        decimal number = bytes;
+
+        while (Math.Round(number / 1024) >= 1)
+        {
+            number /= 1024;
+            counter++;
+        }
+
+        return $"{number:n1} {suffixes[counter]}";
+    }
+
+    #endregion
+}

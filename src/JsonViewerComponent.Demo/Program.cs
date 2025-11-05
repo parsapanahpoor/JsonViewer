@@ -1,8 +1,14 @@
+
+using JsonViewerComponent.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
+
+//JsonViewer Component 
+builder.Services.AddScoped<IOptimizedFileDownloadService, OptimizedFileDownloadService>();
 
 var app = builder.Build();
 
