@@ -1,0 +1,336 @@
+﻿@using Microsoft.JSInterop
+@inject IJSRuntime jsRuntime
+
+@if (IsVisible)
+{
+    <div class="modal-backdrop show" @onclick="@Close"></div>
+    <div class="modal show d-block" tabindex="-1" style="background: transparent;">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Base64 Tools</h5>
+                    <button type="button" class="btn-close" @onclick="@Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Input</label>
+                        <textarea class="form-control" @bind="inputText" rows="5"
+                                  placeholder="Enter text to encode or base64 to decode"
+                                  style="text-align: left; direction: ltr;"></textarea>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <!-- Clear button on the left -->
+                        <button @onclick="@Clear" class="btn btn-info">
+                            <Icon Name="x-lg" /> Clear
+                        </button>
+
+                        <!-- Encode/Decode buttons on the right -->
+                        <div class="d-flex gap-2">
+                            <button @onclick="@Encode" class="btn btn-primary">
+                                <Icon Name="arrow-right" /> Encode
+                            </button>
+                            <button @onclick="@Decode" class="btn btn-secondary">
+                                <Icon Name="arrow-left" /> Decode
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Result</label>
+                        <textarea class="form-control" @bind="resultText" rows="5" readonly
+                                  placeholder="Result will appear here"
+                                  style="text-align: left; direction: ltr;"></textarea>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button @onclick="@CopyResult" class="btn btn-outline-primary">
+                            <Icon Name="clipboard" /> Copy Result
+                        </button>
+                        <button @onclick="@UseResult" class="btn btn-success"
+                                disabled="@string.IsNullOrEmpty(resultText)">
+                            <Icon Name="check" /> Use Result
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+@code {
+    #region Parameters
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public EventCallback<bool> IsVisibleChanged { get; set; }
+    [Parameter] public EventCallback<string> OnUseResult { get; set; }
+    [Parameter] public EventCallback<string> OnNotification { get; set; }
+    [Parameter] public string InitialText { get; set; }
+    #endregion
+
+    #region Private Fields
+    private string inputText = "";
+    private string resultText = "";
+    #endregion
+
+    #region Lifecycle Methods
+    protected override void OnParametersSet()
+    {
+        if (IsVisible && !string.IsNullOrEmpty(InitialText))
+        {
+            inputText = InitialText;
+        }
+    }
+    #endregion
+
+    #region Public Methods
+    private async Task Close()
+    {
+        IsVisible = false;
+        await IsVisibleChanged.InvokeAsync(false);
+        Clear();
+    }
+
+    private void Clear()
+    {
+        inputText = "";
+        resultText = "";
+    }
+
+    private async Task Encode()
+    {
+        if (string.IsNullOrEmpty(inputText))
+        {
+            await ShowNotification("Please enter text to encode");
+            return;
+        }
+
+        try
+        {
+            var bytes = System.Text.Encoding.UTF8.GetBytes(inputText);
+            resultText = Convert.ToBase64String(bytes);
+            await ShowNotification("Text encoded successfully");
+        }
+        catch (Exception ex)
+        {
+            resultText = $"Error: {ex.Message}";
+            await ShowNotification("Failed to encode text");
+        }
+    }
+
+    private async Task Decode()
+    {
+        if (string.IsNullOrEmpty(inputText))
+        {
+            await ShowNotification("Please enter base64 to decode");
+            return;
+        }
+
+        try
+        {
+            var cleanBase64 = inputText.Trim();
+            if (cleanBase64.Length % 4 != 0)
+            {
+                cleanBase64 = cleanBase64.PadRight(cleanBase64.Length + (4 - cleanBase64.Length % 4), '=');
+            }
+
+            var bytes = Convert.FromBase64String(cleanBase64);
+            resultText = System.Text.Encoding.UTF8.GetString(bytes);
+            await ShowNotification("Base64 decoded successfully");
+        }
+        catch (FormatException)
+        {
+            resultText = "Error: Invalid base64 format";
+            await ShowNotification("Invalid base64 format");
+        }
+        catch (Exception ex)
+        {
+            resultText = $"Error: {ex.Message}";
+            await ShowNotification("Failed to decode base64");
+        }
+    }
+
+    private async Task CopyResult()
+    {
+        if (!string.IsNullOrEmpty(resultText))
+        {
+            await jsRuntime.InvokeVoidAsync("navigator.clipboard.writeText", resultText);
+            await ShowNotification("Result copied to clipboard");
+        }
+    }
+
+    private async Task UseResult()
+    {
+        if (!string.IsNullOrEmpty(resultText))
+        {
+            await OnUseResult.InvokeAsync(resultText);
+            await Close();
+            await ShowNotification("Result applied to JSON");
+        }
+    }
+
+    private async Task ShowNotification(string message)
+    {
+        await OnNotification.InvokeAsync(message);
+    }
+    #endregion
+}
+
+<style>
+    /* Modal backdrop styling */
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 1040;
+        width: 100vw;
+        height: 100vh;
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    /* Modal styling */
+    .modal.show {
+        z-index: 1050;
+    }
+
+    .modal-dialog {
+        margin: 1.75rem auto;
+    }
+
+    .modal-content {
+        border-radius: 8px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-header {
+        border-bottom: 1px solid #dee2e6;
+        padding: 1rem;
+    }
+
+    .modal-title {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 500;
+    }
+
+    .btn-close {
+        background: transparent;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        opacity: 0.5;
+    }
+
+        .btn-close:hover {
+            opacity: 1;
+        }
+
+    .modal-body {
+        padding: 1rem;
+    }
+
+    /* Form styling */
+    .form-label {
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control {
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        padding: 0.5rem;
+        font-family: 'Consolas', 'Monaco', monospace;
+    }
+
+        .form-control:focus {
+            border-color: #86b7fe;
+            outline: 0;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+
+    /* Button styling */
+    .btn {
+        padding: 0.375rem 0.75rem;
+        font-size: 1rem;
+        border-radius: 4px;
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-primary {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        color: white;
+    }
+
+        .btn-primary:hover {
+            background-color: #0b5ed7;
+            border-color: #0a58ca;
+        }
+
+    .btn-secondary {
+        background-color: #6c757d;
+        border-color: #6c757d;
+        color: white;
+    }
+
+        .btn-secondary:hover {
+            background-color: #5c636a;
+            border-color: #565e64;
+        }
+
+    .btn-info {
+        background-color: #0dcaf0;
+        border-color: #0dcaf0;
+        color: #000;
+    }
+
+        .btn-info:hover {
+            background-color: #31d2f2;
+            border-color: #25cff2;
+        }
+
+    .btn-outline-primary {
+        background-color: transparent;
+        border-color: #0d6efd;
+        color: #0d6efd;
+    }
+
+        .btn-outline-primary:hover {
+            background-color: #0d6efd;
+            color: white;
+        }
+
+    .btn-success {
+        background-color: #198754;
+        border-color: #198754;
+        color: white;
+    }
+
+        .btn-success:hover {
+            background-color: #157347;
+            border-color: #146c43;
+        }
+
+        .btn-success:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+    /* Utility classes */
+    .d-flex {
+        display: flex !important;
+    }
+
+    .justify-content-between {
+        justify-content: space-between !important;
+    }
+
+    .align-items-center {
+        align-items: center !important;
+    }
+
+    .gap-2 {
+        gap: 0.5rem !important;
+    }
+
+    .mb-3 {
+        margin-bottom: 1rem !important;
+    }
+</style>

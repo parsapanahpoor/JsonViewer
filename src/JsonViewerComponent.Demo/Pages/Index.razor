@@ -1,0 +1,39 @@
+﻿@page "/"
+
+<PageTitle>JSON Viewer Demo</PageTitle>
+
+<h1>JSON Viewer Component Demo</h1>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <label>JSON Input:</label>
+        <textarea @bind="jsonInput" class="form-control" rows="10"></textarea>
+        <button @onclick="UpdateJson" class="btn btn-primary mt-2">Load JSON</button>
+    </div>
+    
+    <div class="col-md-12">
+        <JsonViewer JsonData="@currentJson" 
+                    Title="My JSON Viewer"
+                    EmptyMessage="Please load some JSON" />
+    </div>
+</div>
+
+@code {
+    private string jsonInput = @"{
+        ""name"": ""Test"",
+        ""value"": 123,
+        ""items"": [1, 2, 3]
+    }";
+    
+    private string currentJson = "";
+
+    private void UpdateJson()
+    {
+        currentJson = jsonInput;
+    }
+
+    protected override void OnInitialized()
+    {
+        currentJson = jsonInput;
+    }
+}

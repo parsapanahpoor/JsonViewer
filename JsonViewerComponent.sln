@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JsonViewerComponent", "src\JsonViewerComponent\JsonViewerComponent.csproj", "{44A1F6FA-76D9-45DE-BE5A-6E83EBA13206}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JsonViewerComponent.Demo", "src\JsonViewerComponent.Demo\JsonViewerComponent.Demo.csproj", "{87F12223-4579-41A6-B1F3-18CA3181E31D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{44A1F6FA-76D9-45DE-BE5A-6E83EBA13206}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{44A1F6FA-76D9-45DE-BE5A-6E83EBA13206}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{44A1F6FA-76D9-45DE-BE5A-6E83EBA13206}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{44A1F6FA-76D9-45DE-BE5A-6E83EBA13206}.Debug|x64.Build.0 = Debug|Any CPU
+		{44A1F6FA-76D9-45DE-BE5A-6E83EBA13206}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{44A1F6FA-76D9-45DE-BE5A-6E83EBA13206}.Debug|x86.Build.0 = Debug|Any CPU
+		{44A1F6FA-76D9-45DE-BE5A-6E83EBA13206}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{44A1F6FA-76D9-45DE-BE5A-6E83EBA13206}.Release|Any CPU.Build.0 = Release|Any CPU
+		{44A1F6FA-76D9-45DE-BE5A-6E83EBA13206}.Release|x64.ActiveCfg = Release|Any CPU
+		{44A1F6FA-76D9-45DE-BE5A-6E83EBA13206}.Release|x64.Build.0 = Release|Any CPU
+		{44A1F6FA-76D9-45DE-BE5A-6E83EBA13206}.Release|x86.ActiveCfg = Release|Any CPU
+		{44A1F6FA-76D9-45DE-BE5A-6E83EBA13206}.Release|x86.Build.0 = Release|Any CPU
+		{87F12223-4579-41A6-B1F3-18CA3181E31D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{87F12223-4579-41A6-B1F3-18CA3181E31D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{87F12223-4579-41A6-B1F3-18CA3181E31D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{87F12223-4579-41A6-B1F3-18CA3181E31D}.Debug|x64.Build.0 = Debug|Any CPU
+		{87F12223-4579-41A6-B1F3-18CA3181E31D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{87F12223-4579-41A6-B1F3-18CA3181E31D}.Debug|x86.Build.0 = Debug|Any CPU
+		{87F12223-4579-41A6-B1F3-18CA3181E31D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{87F12223-4579-41A6-B1F3-18CA3181E31D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{87F12223-4579-41A6-B1F3-18CA3181E31D}.Release|x64.ActiveCfg = Release|Any CPU
+		{87F12223-4579-41A6-B1F3-18CA3181E31D}.Release|x64.Build.0 = Release|Any CPU
+		{87F12223-4579-41A6-B1F3-18CA3181E31D}.Release|x86.ActiveCfg = Release|Any CPU
+		{87F12223-4579-41A6-B1F3-18CA3181E31D}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{44A1F6FA-76D9-45DE-BE5A-6E83EBA13206} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{87F12223-4579-41A6-B1F3-18CA3181E31D} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5F8C1A54-C09F-496C-8524-462035A89B90}
+	EndGlobalSection
+EndGlobal

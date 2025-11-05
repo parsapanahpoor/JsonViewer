@@ -1,0 +1,2479 @@
+﻿@using Microsoft.JSInterop
+@using System.Web
+@inject IJSRuntime jsRuntime
+@using JsonViewerComponent.Components.Features
+
+<div class="json-viewer-container @(isFullScreen ? "full-screen" : "") @(isDarkTheme ? "dark-theme" : "light-theme")" @ref="containerRef">
+    <!-- Header with Simple Search Box -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <label class="control-label m-0">@Title</label>
+        <div class="d-flex align-items-center @(isFullScreen ? "upper-buttoms-full-screen" : "upper-buttoms")">
+
+            <!-- Navigation buttons (shown only when search has results) -->
+            @if (!string.IsNullOrEmpty(searchText) && matchCount > 0)
+            {
+                <div class="json-navigation-buttons me-2">
+                    <button @onclick="@NavigateToPrevious" class="btn btn-sm btn-light" title="Previous match" disabled="@(currentMatchIndex <= 0)">
+                        <Icon Name="chevron-up" />
+                    </button>
+                    <span class="mx-1">@(currentMatchIndex + 1)/@matchCount</span>
+                    <button @onclick="@NavigateToNext" class="btn btn-sm btn-light" title="Next match" disabled="@(currentMatchIndex >= matchCount - 1)">
+                        <Icon Name="chevron-down" />
+                    </button>
+                </div>
+            }
+
+            <!-- Simple Text Search Box -->
+            <div class="json-text-search me-2">
+                <input value="@searchText"
+                       @oninput="@(async e => {
+                       searchText = e.Value?.ToString();
+                       await HandleSearchTextChange(); })"
+                       placeholder="Search..."
+                       class="form-control form-control-sm" />
+                <button @onclick="@ClearSearch" class="btn btn-sm btn-light ms-1" title="Clear">
+                    <Icon Name="x-lg" />
+                </button>
+            </div>
+
+            <!-- Type Filter Button and Dropdown -->
+            <div class="dropdown me-2">
+                <button @onclick="@ToggleTypeFilter" class="btn btn-sm btn-light" title="Filter by type">
+                    <Icon Name="funnel" />
+                </button>
+
+                @if (showTypeFilter)
+                {
+                    <div class="dropdown-menu show" style="display: block; position: absolute; transform: translate3d(0px, 30px, 0px);">
+                        <h6 class="dropdown-header">Filter by Type</h6>
+                        @foreach (var type in availableTypes)
+                        {
+                            <label class="dropdown-item">
+                                <input type="checkbox" checked="@(selectedTypes.Contains(type))"
+                                       @onchange="@(e => ToggleTypeSelection(type, (bool)e.Value))" />
+                                @type
+                            </label>
+                        }
+                        <div class="dropdown-divider"></div>
+                        <button class="dropdown-item" @onclick="@SelectAllTypes">Select All</button>
+                        <button class="dropdown-item" @onclick="@DeselectAllTypes">Deselect All</button>
+                    </div>
+                }
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Validation Status Box -->
+    @if (validationResult != null)
+    {
+        <div class="validation-status alert @(validationResult.IsValid ? "alert-success" : "alert-danger") py-1 px-2 mb-2 d-flex justify-content-between align-items-center" style="margin-left: 57px;">
+            <small>
+                @if (validationResult.IsValid)
+                {
+                    <text>JSON is valid</text>
+                }
+                else
+                {
+                    <text>Validation error: @validationResult.ErrorMessage</text>
+                }
+            </small>
+            <button @onclick="@ClearValidation" class="btn btn-sm bg-light border border-primary ms-2"
+                    style="padding: 0.3rem 0.8rem;border: 1px solid #7239ea !important;color: #7239ea;text-align: center;"
+                    title="Clear validation">
+                <i class="fas fa-times" style="padding-right: 5px"></i>
+            </button>
+        </div>
+    }
+
+    <!-- Filter Status Box -->
+    @if (HasActiveFilters && selectedTypes.Count != availableTypes.Count)
+    {
+        <div class="filter-status alert alert-info py-1 px-2 mb-2 d-flex justify-content-between align-items-center" style="margin-left: 57px;">
+            <small>
+                Filtering by: @string.Join(", ", selectedTypes)
+            </small>
+            <button @onclick="@ClearAllFilters" class="btn btn-sm bg-light border border-primary ms-2"
+                    style="padding: 0.3rem 0.8rem;border: 1px solid #7239ea !important;color: #7239ea;text-align: center;"
+                    title="Clear all filters">
+                <i class="fas fa-times" style="padding-right: 5px"></i>
+            </button>
+        </div>
+    }
+
+    <!-- Search Status Box -->
+    @if (!string.IsNullOrEmpty(searchText))
+    {
+        <div class="search-status alert alert-info py-1 px-2 mb-2 d-flex justify-content-between align-items-center" style="margin-left: 57px;">
+            <small>
+                @if (matchCount > 0)
+                {
+                    <text>Search "<strong>@searchText</strong>" : @matchCount matches found </text>
+                }
+                else
+                {
+                    <text>No matches found for "<strong>@searchText</strong>"</text>
+                }
+            </small>
+            <button @onclick="@ClearSearch" class="btn btn-sm bg-light border border-primary ms-2"
+                    style="padding: 0.3rem 0.8rem;border: 1px solid #7239ea !important;color: #7239ea;text-align: center;"
+                    title="Clear Search">
+                <i class="fas fa-times" style="padding-right: 5px"></i>
+            </button>
+        </div>
+    }
+
+    <!-- Statistics Panel for normal mode -->
+    @if (showStatsPanel && !isFullScreen)
+    {
+        <div class="stats-panel alert alert-info py-2 px-3 mb-2" style="margin-left: 57px;">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="m-0">JSON Statistics</h6>
+                <button @onclick="@ToggleStats" class="btn btn-sm btn-light" title="Close statistics">
+                    <Icon Name="x-lg" />
+                </button>
+            </div>
+            <hr class="my-2">
+            <div class="stats-content">
+                @if (jsonStats != null)
+                {
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Properties:</span>
+                            <span class="stat-value">@jsonStats.TotalProperties</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Objects:</span>
+                            <span class="stat-value">@jsonStats.ObjectCount</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Arrays:</span>
+                            <span class="stat-value">@jsonStats.ArrayCount</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Strings:</span>
+                            <span class="stat-value">@jsonStats.StringCount</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Numbers:</span>
+                            <span class="stat-value">@jsonStats.NumberCount</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Booleans:</span>
+                            <span class="stat-value">@jsonStats.BooleanCount</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Nulls:</span>
+                            <span class="stat-value">@jsonStats.NullCount</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Max Depth:</span>
+                            <span class="stat-value">@jsonStats.MaxDepth</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Raw Size:</span>
+                            <span class="stat-value">@FormatBytes(jsonStats.RawSize)</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Formatted Size:</span>
+                            <span class="stat-value">@FormatBytes(jsonStats.FormattedSize)</span>
+                        </div>
+                        @if (jsonStats.ObjectCount > 0)
+                        {
+                            <div class="stat-item">
+                                <span class="stat-label">Avg Props/Object:</span>
+                                <span class="stat-value">@Math.Round(jsonStats.AvgPropertiesPerObject, 2)</span>
+                            </div>
+                        }
+                        @if (jsonStats.ArrayCount > 0)
+                        {
+                            <div class="stat-item">
+                                <span class="stat-label">Avg Array Length:</span>
+                                <span class="stat-value">@Math.Round(jsonStats.AvgArrayLength, 2)</span>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="text-muted">No statistics available</div>
+                }
+            </div>
+        </div>
+    }
+
+    <!-- Main content area with JSON and vertical buttons -->
+    <div class="json-content-wrapper d-flex">
+
+        <!-- Statistics Panel for full screen mode -->
+        @if (showStatsPanel && isFullScreen)
+        {
+            <div class="stats-panel-vertical">
+                <div class="stats-header d-flex justify-content-between align-items-center p-2">
+                    <h6 class="m-0">JSON Statistics</h6>
+                    <button @onclick="@ToggleStats" class="btn btn-sm btn-light" title="Close statistics">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="stats-content p-2">
+                    @if (jsonStats != null)
+                    {
+                        <div class="stats-list mt-2">
+                            <div class="stat-item">
+                                <span class="stat-label">Total Properties:</span>
+                                <span class="stat-value">@jsonStats.TotalProperties</span>
+                            </div>
+                            <hr class="my-2" />
+                            <div class="stat-item">
+                                <span class="stat-label">Objects:</span>
+                                <span class="stat-value">@jsonStats.ObjectCount</span>
+                            </div>
+                            <hr class="my-2" />
+                            <div class="stat-item">
+                                <span class="stat-label">Arrays:</span>
+                                <span class="stat-value">@jsonStats.ArrayCount</span>
+                            </div>
+                            <hr class="my-2" />
+                            <div class="stat-item">
+                                <span class="stat-label">Strings:</span>
+                                <span class="stat-value">@jsonStats.StringCount</span>
+                            </div>
+                            <hr class="my-2" />
+                            <div class="stat-item">
+                                <span class="stat-label">Numbers:</span>
+                                <span class="stat-value">@jsonStats.NumberCount</span>
+                            </div>
+                            <hr class="my-2" />
+                            <div class="stat-item">
+                                <span class="stat-label">Booleans:</span>
+                                <span class="stat-value">@jsonStats.BooleanCount</span>
+                            </div>
+                            <hr class="my-2" />
+                            <div class="stat-item">
+                                <span class="stat-label">Nulls:</span>
+                                <span class="stat-value">@jsonStats.NullCount</span>
+                            </div>
+                            <hr class="my-2" />
+                            <div class="stat-item">
+                                <span class="stat-label">Max Depth:</span>
+                                <span class="stat-value">@jsonStats.MaxDepth</span>
+                            </div>
+                            <hr class="my-2" />
+                            <div class="stat-item">
+                                <span class="stat-label">Raw Size:</span>
+                                <span class="stat-value">@FormatBytes(jsonStats.RawSize)</span>
+                            </div>
+                            <hr class="my-2" />
+                            <div class="stat-item">
+                                <span class="stat-label">Formatted Size:</span>
+                                <span class="stat-value">@FormatBytes(jsonStats.FormattedSize)</span>
+                            </div>
+                            @if (jsonStats.ObjectCount > 0)
+                            {
+                                <hr class="my-2" />
+                                <div class="stat-item">
+                                    <span class="stat-label">Avg Props/Object:</span>
+                                    <span class="stat-value">@Math.Round(jsonStats.AvgPropertiesPerObject, 2)</span>
+                                </div>
+                            }
+                            @if (jsonStats.ArrayCount > 0)
+                            {
+                                <hr class="my-2" />
+                                <div class="stat-item">
+                                    <span class="stat-label">Avg Array Length:</span>
+                                    <span class="stat-value">@Math.Round(jsonStats.AvgArrayLength, 2)</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-muted">No statistics available</div>
+                    }
+                </div>
+            </div>
+        }
+
+
+
+        <!-- JSON Container -->
+        <!-- JSON Container -->
+        <div class="json-container @(isFullScreen ? "full-screen-json" : "") flex-grow-1 @((showStatsPanel && isFullScreen) ? " ms-2" : "")" style="direction:ltr; text-align:left;" @ref="jsonContainerRef">
+
+            @if (jsonToken != null)
+            {
+                <div class="json-content">
+                    @RenderJsonTokenWithLineNumbers(jsonToken, 0, "$")
+                </div>
+            }
+            else
+            {
+                <div class="text-muted">@EmptyMessage</div>
+            }
+        </div>
+
+        <div class="json-vertical-buttons ms-2 d-flex flex-column">
+
+            @*<JsonCompare/>*@
+
+            <!-- Base64 Tools Button -->
+            <button @onclick="@ToggleBase64" class="btn btn-sm btn-light mb-2" title="Base64 Tools">
+                <Icon Name="key" />
+            </button>
+
+            <!-- Statistics Button -->
+            <button @onclick="@ToggleStats" class="btn btn-sm btn-light mb-2 @(showStatsPanel ? "selected-btn-light-them" : "")" title="Show statistics">
+                <Icon Name="@(showStatsPanel ? "info-circle-fill" : "info-circle")" />
+            </button>
+
+            <!-- JSON Path Explorer Button -->
+            <button @onclick="@ToggleJsonPath" class="btn btn-sm btn-light mb-2 @(showJsonPath ? "selected-btn-light-them" : "")" title="@(showJsonPath ? "Hide JSON Path" : "Show JSON Path")">
+                <Icon Name="diagram" />
+            </button>
+
+            <!-- Validation Button -->
+            <button @onclick="@ValidateJson" class="btn btn-sm btn-light mb-2" title="Validate JSON">
+                <Icon Name="check-circle" />
+            </button>
+
+            <!-- Expand/Collapse All Button -->
+            <button @onclick="@ToggleExpandAll" class="btn btn-sm btn-light mb-2 @(allExpanded ? "selected-btn-light-them" : "")" title="@(allExpanded ? "Collapse all" : "Expand all")">
+                <Icon Name="@(allExpanded ? "dash-square" : "plus-square")" />
+            </button>
+
+            <!-- Full Screen Button -->
+            <button @onclick="@ToggleFullScreen" class="btn btn-sm btn-light mb-2 @(isFullScreen ? "selected-btn-light-them" : "")" title="@(isFullScreen ? "Exit full screen" : "Enter full screen")">
+                <Icon Name="@(isFullScreen ? "fullscreen-exit" : "arrows-fullscreen")" />
+            </button>
+
+            <!-- Copy Button -->
+            <button @onclick="@CopyToClipboard" class="btn btn-sm btn-light mb-2" title="Copy">
+                <Icon Name="clipboard" />
+            </button>
+
+            <!-- Export Button -->
+            <button @onclick="@ExportToTxt" class="btn btn-sm btn-light mb-2" title="Export to TXT">
+                <Icon Name="download" />
+            </button>
+
+            <!-- Theme Toggle Button -->
+            <button @onclick="@ToggleTheme" class="btn btn-sm btn-light mb-2 toggle-theme-btn" title="Toggle theme">
+                <Icon Name="@(isDarkTheme ? "sun-fill" : "moon-fill")" />
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<!-- Base64 Tools Component -->
+<Base64Tools IsVisible="@showBase64Modal"
+             IsVisibleChanged="@OnBase64VisibilityChanged"
+             OnUseResult="@OnBase64ResultUsed"
+             OnNotification="@HandleNotification"
+             InitialText="@(GetSelectedText() ?? "")" />
+
+@code {
+    #region Parameters
+    [Parameter] public string Title { get; set; } = "JSON Viewer";
+    [Parameter] public string EmptyMessage { get; set; } = "No data available";
+    [Parameter] public string JsonData { get; set; }
+    [Parameter] public EventCallback<string> JsonDataChanged { get; set; }
+    #endregion
+
+    #region JSON Core - Parsing and navigation core functionality
+    private JToken jsonToken;
+    private Dictionary<string, bool> expandedStates = new();
+    private bool allExpanded = true;
+    #endregion
+
+    #region Search Functionality - Search and highlight features
+    private string searchText = "";
+    private int matchCount = 0;
+    private int currentMatchIndex = -1;
+    private List<JToken> searchMatches = new();
+    private bool isNavigating = false;
+    #endregion
+
+    #region UI References - DOM element references
+    private ElementReference jsonContainerRef;
+    private ElementReference containerRef;
+    #endregion
+
+    #region UI State - User interface state management
+    private bool isFullScreen = false;
+    private string originalContainerStyle = "";
+    private bool showJsonPath = false;
+    private bool isDarkTheme = false;
+    #endregion
+
+    #region Line Numbering - Line number tracking and display
+    private int totalLines = 0;
+    private int currentRenderingLine = 1;
+    private CursorPosition cursorPosition = new CursorPosition { Line = 1, Column = 1 };
+    private List<JsonLine> jsonLines = new();
+    private Dictionary<JToken, int> tokenLineNumbers = new Dictionary<JToken, int>();
+    #endregion
+
+    #region Statistics Panel - JSON statistics and analysis
+    private bool showStatsPanel = false;
+    private JsonStatistics jsonStats;
+    #endregion
+
+    #region Type Filtering - Data type filter functionality
+    private bool showTypeFilter = false;
+    private HashSet<string> selectedTypes = new HashSet<string>();
+    private List<string> availableTypes = new List<string>
+    {
+        "String", "Number", "Boolean", "Null", "Array", "Object"
+    };
+    #endregion
+
+    #region Validation - JSON validation functionality
+    private ValidationResult validationResult;
+    #endregion
+
+    #region Lifecycle Methods - Component lifecycle hooks
+    protected override void OnParametersSet()
+    {
+        jsonToken = !string.IsNullOrWhiteSpace(JsonData)
+            ? JToken.Parse(JsonData)
+            : null;
+
+        if (jsonToken != null && !expandedStates.Any())
+        {
+            allExpanded = true;
+        }
+
+        if (!selectedTypes.Any())
+        {
+            selectedTypes = new HashSet<string>(availableTypes);
+        }
+
+        if (!string.IsNullOrEmpty(searchText))
+        {
+            _ = UpdateMatchCount();
+        }
+
+        if (jsonToken != null)
+        {
+            CalculateLineNumbers(jsonToken, 1);
+            CalculateStatistics();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var savedTheme = await jsRuntime.InvokeAsync<string>("localStorage.getItem", "jsonViewerTheme");
+                if (!string.IsNullOrEmpty(savedTheme))
+                {
+                    isDarkTheme = savedTheme == "dark";
+                }
+                else
+                {
+                    try
+                    {
+                        var prefersDark = await jsRuntime.InvokeAsync<bool>("eval",
+                            "window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches");
+                        isDarkTheme = prefersDark;
+                    }
+                    catch
+                    {
+                        isDarkTheme = false;
+                    }
+                }
+
+                await jsRuntime.InvokeVoidAsync("eval", @"
+                    if (!window.jsonViewerDownloadFile) {
+                        window.jsonViewerDownloadFile = function(filename, contentType, base64Data) {
+                            try {
+                                const link = document.createElement('a');
+                                link.style.display = 'none';
+                                document.body.appendChild(link);
+
+                                const byteCharacters = atob(base64Data);
+                                const byteNumbers = new Array(byteCharacters.length);
+                                for (let i = 0; i < byteCharacters.length; i++) {
+                                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                                }
+                                const byteArray = new Uint8Array(byteNumbers);
+                                const blob = new Blob([byteArray], { type: contentType });
+
+                                const url = URL.createObjectURL(blob);
+                                link.href = url;
+                                link.download = filename;
+                                link.click();
+
+                                setTimeout(() => {
+                                    URL.revokeObjectURL(url);
+                                    document.body.removeChild(link);
+                                }, 100);
+                            } catch (e) {
+                                console.error('Download error:', e);
+                            }
+                        };
+                    }
+                ");
+
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during first render: {ex.Message}");
+                isDarkTheme = false;
+                StateHasChanged();
+            }
+        }
+
+        if (isNavigating && !string.IsNullOrEmpty(searchText) && searchMatches.Any() && currentMatchIndex >= 0)
+        {
+            await Task.Delay(10);
+            await ScrollToCurrentMatch();
+            isNavigating = false;
+        }
+
+        if (isFullScreen)
+        {
+            try
+            {
+                var containerBackground = isDarkTheme ? "#36363e" : "white";
+                var jsonBackground = isDarkTheme ? "#1E1E1E" : "white";
+
+                await jsRuntime.InvokeVoidAsync("eval",
+                    "const container = document.querySelector('.json-viewer-container');" +
+                    "const jsonContainer = document.querySelector('.json-container.full-screen-json');" +
+                    "if (container) {" +
+                    "  container.style.backgroundColor = '" + containerBackground + "';" +
+                    "}" +
+                    "if (jsonContainer) {" +
+                    "  jsonContainer.style.height = 'calc(100vh - 100px)';" +
+                    "  jsonContainer.style.maxHeight = 'none';" +
+                    "  jsonContainer.style.backgroundColor = '" + jsonBackground + "';" +
+                    "}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Full screen adjustment error: {ex.Message}");
+            }
+        }
+    }
+    #endregion
+
+    #region JSON Rendering - Token rendering and display methods
+    private RenderFragment RenderJsonTokenWithLineNumbers(JToken token, int level, string path) => @<text>
+@{
+    int localRenderingLine = 1;
+
+    if (jsonToken == null) return;
+
+    int tokenLines = CountLinesInToken(token);
+
+    <div class="json-line-container">
+        <div class="line-numbers-column">
+            @for (int i = 0; i<tokenLines; i++)
+                        {
+                        int lineNumber = localRenderingLine + i;
+                bool isActiveLine = lineNumber == cursorPosition.Line;
+
+                <div class="line-number @(isActiveLine ? "active" : "")">
+                    @lineNumber
+                </div>
+            }
+        </div>
+        <div class="json-content-column">
+            @RenderJsonToken(token, level, path)
+        </div>
+    </div>
+
+localRenderingLine += tokenLines;
+    }
+</text>;
+
+    private RenderFragment RenderJsonToken(JToken token, int level, string path) => @<text>
+@switch (token)
+{
+    case JObject obj:
+        @RenderObject(obj, level, path)
+        break;
+    case JArray arr:
+        @RenderArray(arr, level, path)
+        break;
+    default:
+        @RenderValue(token, path)
+        break;
+}
+</text>;
+
+private RenderFragment RenderObject(JObject obj, int level, string path) => @<text>
+@{
+    var objId = obj.GetHashCode().ToString();
+    var isExpanded = expandedStates.GetValueOrDefault(objId, allExpanded);
+    var shouldShowPaths = showJsonPath;
+    var displayPath = path.StartsWith("$.") ? path.Substring(2) : path;
+    var shouldDisplay = ShouldDisplayToken(obj);
+}
+@if (shouldDisplay)
+{
+        <div class="json-object">
+            <div style="display:flex; align-items:center;">
+                <span class="json-toggle" @onclick="@(() => ToggleExpand(objId))">
+                    @(isExpanded ? "˅" : ">")
+                </span>
+                <span class="json-punctuation">{</span>
+                @if (!isExpanded)
+                {
+                    <span class="json-collapsed ms-2">...</span>
+                }
+            </div>
+
+            @if (isExpanded)
+            {
+                <div style="margin-left:@(level * 15)px">
+                    @foreach (var prop in obj.Properties())
+                    {
+                        var isCurrent = currentMatchIndex >= 0 && searchMatches.Any() &&
+                        searchMatches[currentMatchIndex] == prop;
+                        var propertyPath = $"{path}.{prop.Name}";
+                        var displayPropertyPath = CleanJsonPath(propertyPath);
+                        var shouldDisplayProperty = ShouldDisplayToken(prop.Value);
+
+                        @if (shouldDisplayProperty)
+                        {
+                            <div class="json-property">
+                                @if (shouldShowPaths)
+                                {
+                                    <div class="json-path-display">@displayPropertyPath</div>
+                                }
+                                <span class="json-property-name">
+                                    @if (ShouldHighlight(prop.Name))
+                                    {
+                                        @((MarkupString)$"\"{HighlightText(prop.Name, isCurrent)}\":")
+                                    }
+                                    else
+                                    {
+                                        @((MarkupString)$"\"{prop.Name}\":")
+                                    }
+                                </span>
+                                @RenderJsonToken(prop.Value, level + 1, propertyPath)
+                            </div>
+                        }
+                    }
+                </div>
+                <span class="json-punctuation">}</span>
+            }
+        </div>
+}
+</text>;
+
+private RenderFragment RenderArray(JArray arr, int level, string path) => @<text>
+@{
+    var arrId = arr.GetHashCode().ToString();
+    var isExpanded = expandedStates.GetValueOrDefault(arrId, allExpanded);
+    var shouldShowPaths = showJsonPath;
+    var displayPath = path.StartsWith("$.") ? path.Substring(2) : path;
+    var shouldDisplay = ShouldDisplayToken(arr);
+}
+@if (shouldDisplay)
+{
+        <div class="json-array">
+            <div style="display:flex; align-items:center;">
+                <span class="json-toggle" @onclick="@(() => ToggleExpand(arrId))">
+                    @(isExpanded ? "˅" : ">")
+                </span>
+                <span class="json-punctuation">[</span>
+                @if (!isExpanded)
+                {
+                    <span class="json-collapsed ms-2">... (@arr.Count items)</span>
+                }
+            </div>
+
+            @if (isExpanded)
+            {
+                <div style="margin-left:@(level * 15)px">
+                    @for (var i = 0; i < arr.Count; i++)
+                    {
+                        var item = arr[i];
+                        var isCurrent = currentMatchIndex >= 0 && searchMatches.Any() &&
+                        searchMatches[currentMatchIndex] == item;
+                        var itemPath = $"{path}[{i}]";
+                        var displayItemPath = CleanJsonPath(itemPath);
+                        var shouldDisplayItem = ShouldDisplayToken(item);
+
+                        @if (shouldDisplayItem)
+                        {
+                            <div class="json-array-item">
+                                @if (shouldShowPaths)
+                                {
+                                    <div class="json-path-display">@displayItemPath</div>
+                                }
+                                @RenderJsonToken(item, level + 1, itemPath)
+                            </div>
+                        }
+                    }
+                </div>
+                <span class="json-punctuation">]</span>
+            }
+        </div>
+}
+</text>;
+
+private RenderFragment RenderValue(JToken token, string path) => @<text>
+@{
+    var isCurrent = currentMatchIndex >= 0 && searchMatches.Any() &&
+    searchMatches[currentMatchIndex] == token;
+    var shouldDisplay = ShouldDisplayToken(token);
+}
+@if (shouldDisplay)
+{
+        <span class="@GetValueClass(token)">
+            @if (ShouldHighlight(token.ToString()))
+            {
+                @if (token.Type == JTokenType.String)
+                {
+                    @((MarkupString)$"\"{HighlightText(token.ToString(), isCurrent)}\"")
+                }
+                else
+                {
+                    @HighlightText(token.ToString(), isCurrent)
+                }
+            }
+            else
+            {
+                @(token.Type == JTokenType.String ? $"\"{token}\"" : token.ToString())
+            }
+        </span>
+}
+</text>;
+
+private string GetValueClass(JToken token)
+{
+    return token.Type switch
+    {
+        JTokenType.String => "json-string",
+        JTokenType.Integer => "json-number",
+        JTokenType.Float => "json-number",
+        JTokenType.Boolean => "json-boolean",
+        JTokenType.Null => "json-null",
+        _ => "json-value"
+    };
+}
+#endregion
+
+#region Line Number Management - Line numbering calculation and tracking
+private int CalculateLineNumbers(JToken token, int startLine)
+{
+    if (token == null) return startLine;
+
+    tokenLineNumbers[token] = startLine;
+    int currentLine = startLine;
+
+    switch (token)
+    {
+        case JObject obj:
+            currentLine++;
+            foreach (var property in obj.Properties())
+            {
+                tokenLineNumbers[property] = currentLine;
+                currentLine = CalculateLineNumbers(property.Value, currentLine + 1);
+            }
+            currentLine++;
+            break;
+
+        case JArray arr:
+            currentLine++;
+            foreach (var item in arr)
+            {
+                currentLine = CalculateLineNumbers(item, currentLine);
+            }
+            currentLine++;
+            break;
+
+        default:
+            currentLine++;
+            break;
+    }
+
+    return currentLine;
+}
+
+private int GetLineNumberForToken(JToken token)
+{
+    return tokenLineNumbers.TryGetValue(token, out int lineNumber) ? lineNumber : 1;
+}
+
+private int CountLinesInToken(JToken token)
+{
+    if (token == null) return 1;
+
+    try
+    {
+        var formatted = token.ToString(Formatting.Indented);
+        return formatted.Split('\n').Length;
+    }
+    catch
+    {
+        return 1;
+    }
+}
+
+private void UpdateJsonLines()
+{
+    jsonLines.Clear();
+    totalLines = 0;
+    currentRenderingLine = 1;
+
+    if (jsonToken == null) return;
+
+    var formattedJson = jsonToken.ToString(Formatting.Indented);
+    var lines = formattedJson.Split('\n');
+    totalLines = lines.Length;
+}
+
+private int GetLineNumberForToken(JToken token, string path)
+{
+    if (token == null) return 1;
+
+    try
+    {
+        if (token is JObject || token is JArray)
+        {
+            var jsonString = token.ToString(Formatting.Indented);
+            var lines = jsonString.Split('\n');
+            return CalculateLineNumberFromPath(path);
+        }
+
+        return CalculateLineNumberFromPath(path);
+    }
+    catch
+    {
+        return 1;
+    }
+}
+
+private int CalculateLineNumberFromPath(string path)
+{
+    if (jsonLines.Any())
+    {
+        return Math.Abs(path.GetHashCode()) % totalLines + 1;
+    }
+    return 1;
+}
+#endregion
+
+#region Search Operations - Search, highlight and navigation functionality
+private async Task UpdateMatchCount()
+{
+    matchCount = 0;
+    searchMatches.Clear();
+    currentMatchIndex = -1;
+    isNavigating = false;
+
+    if (jsonToken == null || string.IsNullOrEmpty(searchText))
+    {
+        return;
+    }
+
+    FindAllMatches();
+    await UpdateMatchCountFromDOM();
+
+    if (searchMatches.Any())
+    {
+        currentMatchIndex = 0;
+    }
+}
+
+private async Task UpdateMatchCountFromDOM()
+{
+    if (string.IsNullOrEmpty(searchText))
+    {
+        matchCount = 0;
+        return;
+    }
+
+    try
+    {
+        await Task.Delay(10);
+        matchCount = await jsRuntime.InvokeAsync<int>("eval",
+            "const marks = document.querySelectorAll('mark');" +
+            "marks.length;");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error counting DOM matches: {ex.Message}");
+        matchCount = searchMatches.Count;
+    }
+}
+
+private void FindAllMatches()
+{
+    searchMatches.Clear();
+    if (jsonToken == null || string.IsNullOrEmpty(searchText)) return;
+    FindMatchesInToken(jsonToken);
+}
+
+private void FindMatchesInToken(JToken token)
+{
+    if (token == null) return;
+
+    switch (token.Type)
+    {
+        case JTokenType.Object:
+            foreach (var property in ((JObject)token).Properties())
+            {
+                if (property.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+                {
+                    searchMatches.Add(property);
+                }
+                if (property.Value != null && property.Value.ToString().Contains(searchText, StringComparison.OrdinalIgnoreCase))
+                {
+                    searchMatches.Add(property.Value);
+                }
+                FindMatchesInToken(property.Value);
+            }
+            break;
+
+        case JTokenType.Array:
+            foreach (var item in (JArray)token)
+            {
+                if (item != null && item.ToString().Contains(searchText, StringComparison.OrdinalIgnoreCase))
+                {
+                    searchMatches.Add(item);
+                }
+                FindMatchesInToken(item);
+            }
+            break;
+
+        default:
+            if (token.ToString().Contains(searchText, StringComparison.OrdinalIgnoreCase))
+            {
+                searchMatches.Add(token);
+            }
+            break;
+    }
+}
+
+private bool ShouldHighlight(string text)
+{
+    if (string.IsNullOrEmpty(searchText) || string.IsNullOrEmpty(text))
+        return false;
+    return text.Contains(searchText, StringComparison.OrdinalIgnoreCase);
+}
+
+private MarkupString HighlightText(string text, bool isCurrent = false)
+{
+    if (string.IsNullOrEmpty(searchText) || string.IsNullOrEmpty(text))
+    {
+        return (MarkupString)System.Net.WebUtility.HtmlEncode(text);
+    }
+
+    var index = text.IndexOf(searchText, StringComparison.OrdinalIgnoreCase);
+    if (index >= 0)
+    {
+        var before = System.Net.WebUtility.HtmlEncode(text.Substring(0, index));
+        var match = System.Net.WebUtility.HtmlEncode(text.Substring(index, searchText.Length));
+        var after = System.Net.WebUtility.HtmlEncode(text.Substring(index + searchText.Length));
+
+        var cssClass = isCurrent ? "current-match" : "";
+        return (MarkupString)$"{before}<mark class='{cssClass}' data-is-current='{isCurrent.ToString().ToLower()}'>{match}</mark>{after}";
+    }
+
+    return (MarkupString)System.Net.WebUtility.HtmlEncode(text);
+}
+
+private async Task HandleSearchTextChange()
+{
+    if (string.IsNullOrEmpty(searchText))
+    {
+        matchCount = 0;
+        searchMatches.Clear();
+        currentMatchIndex = -1;
+        isNavigating = false;
+    }
+    else
+    {
+        await UpdateMatchCount();
+    }
+    StateHasChanged();
+}
+
+private async Task ClearSearch()
+{
+    searchText = "";
+    matchCount = 0;
+    searchMatches.Clear();
+    currentMatchIndex = -1;
+    isNavigating = false;
+    await InvokeAsync(StateHasChanged);
+}
+
+private void NavigateToNext()
+{
+    if (searchMatches.Any() && currentMatchIndex < searchMatches.Count - 1)
+    {
+        currentMatchIndex++;
+        isNavigating = true;
+        StateHasChanged();
+    }
+}
+
+private void NavigateToPrevious()
+{
+    if (searchMatches.Any() && currentMatchIndex > 0)
+    {
+        currentMatchIndex--;
+        isNavigating = true;
+        StateHasChanged();
+    }
+}
+
+private async Task ScrollToCurrentMatch()
+{
+    if (currentMatchIndex < 0 || currentMatchIndex >= searchMatches.Count) return;
+
+    try
+    {
+        await jsRuntime.InvokeVoidAsync("eval",
+            "setTimeout(() => {" +
+            "  const marks = document.querySelectorAll('mark[data-is-current=\"true\"]');" +
+            "  if (marks) {" +
+            "    marks.forEach(el => {" +
+            "      el.setAttribute('data-is-current', 'false');" +
+            "      el.classList.remove('current-match');" +
+            "    });" +
+            "  }" +
+            "}, 0);");
+
+        await jsRuntime.InvokeVoidAsync("eval",
+            "setTimeout(() => {" +
+            "  const marks = document.querySelectorAll('mark');" +
+            "  if (marks && marks.length > 0 && marks[" + currentMatchIndex + "]) {" +
+            "    const currentMark = marks[" + currentMatchIndex + "];" +
+            "    currentMark.setAttribute('data-is-current', 'true');" +
+            "    currentMark.classList.add('current-match');" +
+            "    currentMark.scrollIntoView({ behavior: 'smooth', block: 'center' });" +
+            "    currentMark.classList.add('highlight-pulse');" +
+            "    setTimeout(() => {" +
+            "      currentMark.classList.remove('highlight-pulse');" +
+            "    }, 1000);" +
+            "  }" +
+            "}, 10);");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error scrolling to match: {ex.Message}");
+    }
+}
+#endregion
+
+#region Base64 Component Integration
+
+private bool showBase64Modal = false;
+
+private void ToggleBase64()
+{
+    showBase64Modal = !showBase64Modal;
+}
+
+private async Task OnBase64VisibilityChanged(bool isVisible)
+{
+    showBase64Modal = isVisible;
+    StateHasChanged();
+}
+
+private async Task OnBase64ResultUsed(string result)
+{
+    if (!string.IsNullOrEmpty(result))
+    {
+        JsonData = result;
+        await JsonDataChanged.InvokeAsync(JsonData);
+    }
+}
+
+private async Task HandleNotification(string message)
+{
+    await ShowNotification(message);
+}
+
+private string GetSelectedText()
+{
+    if (!string.IsNullOrEmpty(searchText))
+    {
+        return searchText;
+    }
+
+    return null;
+}
+
+#endregion
+
+#region JSON Validation - JSON format validation and error handling
+private async Task ValidateJson()
+{
+    if (string.IsNullOrWhiteSpace(JsonData))
+    {
+        validationResult = new ValidationResult
+        {
+            IsValid = false,
+            ErrorMessage = "No JSON data to validate"
+        };
+        StateHasChanged();
+        return;
+    }
+
+    try
+    {
+        JToken.Parse(JsonData);
+
+        validationResult = new ValidationResult
+        {
+            IsValid = true,
+            ErrorMessage = null
+        };
+
+        await ShowNotification("JSON is valid");
+    }
+    catch (JsonReaderException ex)
+    {
+        validationResult = new ValidationResult
+        {
+            IsValid = false,
+            ErrorMessage = ex.Message,
+            LineNumber = GetLineNumberFromException(ex),
+            LinePosition = GetPositionFromException(ex)
+        };
+
+        await ShowNotification("Invalid JSON format");
+        await HighlightErrorPosition(validationResult.LineNumber, validationResult.LinePosition);
+    }
+    catch (Exception ex)
+    {
+        validationResult = new ValidationResult
+        {
+            IsValid = false,
+            ErrorMessage = ex.Message
+        };
+
+        await ShowNotification("Validation error");
+    }
+
+    StateHasChanged();
+}
+
+private int GetLineNumberFromException(JsonReaderException ex)
+{
+    var message = ex.Message;
+    var lineIndex = message.IndexOf("line ");
+    if (lineIndex >= 0)
+    {
+        var lineStr = message.Substring(lineIndex + 5);
+        var spaceIndex = lineStr.IndexOf(' ');
+        if (spaceIndex > 0)
+        {
+            lineStr = lineStr.Substring(0, spaceIndex);
+        }
+
+        if (int.TryParse(lineStr, out int lineNumber))
+        {
+            return lineNumber;
+        }
+    }
+    return 0;
+}
+
+private int GetPositionFromException(JsonReaderException ex)
+{
+    var message = ex.Message;
+    var posIndex = message.IndexOf("position ");
+    if (posIndex >= 0)
+    {
+        var posStr = message.Substring(posIndex + 9);
+        var spaceIndex = posStr.IndexOf(' ');
+        if (spaceIndex > 0)
+        {
+            posStr = posStr.Substring(0, spaceIndex);
+        }
+
+        if (int.TryParse(posStr, out int position))
+        {
+            return position;
+        }
+    }
+    return 0;
+}
+
+private async Task HighlightErrorPosition(int lineNumber, int position)
+{
+    if (lineNumber <= 0 || position <= 0) return;
+
+    try
+    {
+        await jsRuntime.InvokeVoidAsync("eval",
+            "const jsonContainer = document.querySelector('.json-container');" +
+            "if (jsonContainer) {" +
+            "  jsonContainer.scrollTop = 0;" +
+            "  const lines = jsonContainer.textContent.split('\\n');" +
+            "  if (lines.length >= " + lineNumber + ") {" +
+            "    let scrollPosition = 0;" +
+            "    for (let i = 0; i < " + (lineNumber - 1) + "; i++) {" +
+            "      scrollPosition += lines[i].length + 1;" +
+            "    }" +
+            "    jsonContainer.scrollTop = scrollPosition;" +
+            "  }" +
+            "}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error highlighting position: {ex.Message}");
+    }
+}
+
+private void ClearValidation()
+{
+    validationResult = null;
+    StateHasChanged();
+}
+#endregion
+
+#region Statistics Operations - JSON statistics calculation and display
+private void ToggleStats()
+{
+    showStatsPanel = !showStatsPanel;
+    if (showStatsPanel && jsonToken != null)
+    {
+        CalculateStatistics();
+    }
+    StateHasChanged();
+}
+
+private void CalculateStatistics()
+{
+    if (jsonToken == null)
+    {
+        jsonStats = null;
+        return;
+    }
+
+    jsonStats = new JsonStatistics();
+
+    jsonStats.RawSize = System.Text.Encoding.UTF8.GetByteCount(JsonData);
+    jsonStats.FormattedSize = System.Text.Encoding.UTF8.GetByteCount(jsonToken.ToString(Formatting.Indented));
+
+    AnalyzeToken(jsonToken, 0);
+
+    if (jsonStats.ObjectCount > 0)
+    {
+        jsonStats.AvgPropertiesPerObject = (double)jsonStats.TotalProperties / jsonStats.ObjectCount;
+    }
+
+    if (jsonStats.ArrayCount > 0)
+    {
+        jsonStats.AvgArrayLength = (double)jsonStats.ArrayItems / jsonStats.ArrayCount;
+    }
+}
+
+private void AnalyzeToken(JToken token, int currentDepth)
+{
+    if (token == null) return;
+
+    jsonStats.MaxDepth = Math.Max(jsonStats.MaxDepth, currentDepth);
+
+    switch (token.Type)
+    {
+        case JTokenType.Object:
+            jsonStats.ObjectCount++;
+            var obj = (JObject)token;
+            jsonStats.TotalProperties += obj.Count;
+
+            foreach (var property in obj.Properties())
+            {
+                var propName = property.Name;
+                if (jsonStats.PropertyCounts.ContainsKey(propName))
+                {
+                    jsonStats.PropertyCounts[propName]++;
+                }
+                else
+                {
+                    jsonStats.PropertyCounts[propName] = 1;
+                }
+
+                AnalyzeToken(property.Value, currentDepth + 1);
+            }
+            break;
+
+        case JTokenType.Array:
+            jsonStats.ArrayCount++;
+            var arr = (JArray)token;
+            jsonStats.ArrayItems += arr.Count;
+            jsonStats.TotalProperties += arr.Count;
+
+            foreach (var item in arr)
+            {
+                AnalyzeToken(item, currentDepth + 1);
+            }
+            break;
+
+        case JTokenType.String:
+            jsonStats.StringCount++;
+            var str = token.ToString();
+            jsonStats.TotalStringLength += str.Length;
+            jsonStats.MaxStringLength = Math.Max(jsonStats.MaxStringLength, str.Length);
+            break;
+
+        case JTokenType.Integer:
+        case JTokenType.Float:
+            jsonStats.NumberCount++;
+            var num = token.ToString();
+            jsonStats.TotalNumberLength += num.Length;
+            break;
+
+        case JTokenType.Boolean:
+            jsonStats.BooleanCount++;
+            break;
+
+        case JTokenType.Null:
+            jsonStats.NullCount++;
+            break;
+    }
+}
+
+private string FormatBytes(long bytes)
+{
+    string[] suffixes = { "B", "KB", "MB", "GB", "TB" };
+    int counter = 0;
+    decimal number = bytes;
+
+    while (Math.Round(number / 1024) >= 1)
+    {
+        number /= 1024;
+        counter++;
+    }
+
+    return $"{number:n1} {suffixes[counter]}";
+}
+#endregion
+
+#region Theme Management - Theme switching and persistence
+private async Task ToggleTheme()
+{
+    isDarkTheme = !isDarkTheme;
+
+    try
+    {
+        await jsRuntime.InvokeVoidAsync("localStorage.setItem",
+            "jsonViewerTheme",
+            isDarkTheme ? "dark" : "light");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error saving theme preference: {ex.Message}");
+    }
+
+    StateHasChanged();
+}
+#endregion
+
+#region JSON Path Operations - JSON path display and management
+private void ToggleJsonPath()
+{
+    showJsonPath = !showJsonPath;
+    StateHasChanged();
+}
+
+private string CleanJsonPath(string path)
+{
+    return path.StartsWith("$.") ? path.Substring(2) : path;
+}
+#endregion
+
+#region Export and Format - JSON export and formatting operations
+private async Task FormatJson()
+{
+    if (jsonToken == null) return;
+
+    try
+    {
+        var parsedJson = JToken.Parse(JsonData);
+        JsonData = parsedJson.ToString(Formatting.Indented);
+        await JsonDataChanged.InvokeAsync(JsonData);
+        await ShowNotification("JSON formatted");
+    }
+    catch (Exception ex)
+    {
+        await ShowNotification("Invalid JSON format");
+    }
+}
+
+private async Task ExportToTxt()
+{
+    if (jsonToken == null)
+    {
+        await ShowNotification("No JSON data to export");
+        return;
+    }
+
+    try
+    {
+        string jsonText = jsonToken.ToString(Formatting.Indented);
+        string fileName = $"json_export_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
+        byte[] fileBytes = System.Text.Encoding.UTF8.GetBytes(jsonText);
+
+        await jsRuntime.InvokeVoidAsync("jsonViewerDownloadFile",
+            fileName,
+            "text/plain",
+            Convert.ToBase64String(fileBytes));
+
+        await ShowNotification("JSON exported successfully");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error exporting JSON: {ex.Message}");
+        await ShowNotification("Failed to export JSON");
+    }
+}
+
+private async Task CopyToClipboard()
+{
+    if (jsonToken != null)
+    {
+        await jsRuntime.InvokeVoidAsync("navigator.clipboard.writeText",
+            jsonToken.ToString(Formatting.Indented));
+        await ShowNotification("Copied to clipboard");
+    }
+}
+#endregion
+
+#region Full Screen Mode - Full screen toggle and management
+private async Task ToggleFullScreen()
+{
+    isFullScreen = !isFullScreen;
+
+    if (isFullScreen)
+    {
+        try
+        {
+            await jsRuntime.InvokeVoidAsync("eval",
+                "if (window.jsonViewerOriginalStyle === undefined) {" +
+                "  const container = document.querySelector('.json-viewer-container');" +
+                "  window.jsonViewerOriginalStyle = container.getAttribute('style') || '';" +
+                "  window.jsonContainerOriginalStyle = document.querySelector('.json-container').getAttribute('style') || '';" +
+                "  window.originalBodyOverflow = document.body.style.overflow;" +
+                "  window.originalBodyPosition = document.body.style.position;" +
+                "  window.originalBodyWidth = document.body.style.width;" +
+                "  window.originalBodyHeight = document.body.style.height;" +
+                "  window.scrollPosition = window.pageYOffset || document.documentElement.scrollTop;" +
+                "}");
+
+            var backgroundColor = isDarkTheme ? "#36363e" : "white";
+            var textColor = isDarkTheme ? "#D4D4D4" : "#1E1E1E";
+
+            await jsRuntime.InvokeVoidAsync("eval",
+                "const container = document.querySelector('.json-viewer-container');" +
+                "container.style.position = 'fixed';" +
+                "container.style.top = '0';" +
+                "container.style.left = '0';" +
+                "container.style.width = '100vw';" +
+                "container.style.height = '100vh';" +
+                "container.style.zIndex = '9999';" +
+                "container.style.backgroundColor = '" + backgroundColor + "';" +
+                "container.style.color = '" + textColor + "';" +
+                "container.style.padding = '20px';" +
+                "container.style.overflow = 'auto';" +
+                "container.style.margin = '0';" +
+                "document.body.style.overflow = 'hidden';" +
+                "document.body.style.position = 'fixed';" +
+                "document.body.style.width = '100%';" +
+                "document.body.style.height = '100%';" +
+                "document.body.style.top = '0';" +
+                "document.body.style.left = '0';" +
+                "document.documentElement.style.overflow = 'hidden';" +
+                "document.documentElement.style.position = 'fixed';");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Full screen error: {ex.Message}");
+        }
+    }
+    else
+    {
+        try
+        {
+            await jsRuntime.InvokeVoidAsync("eval",
+                "const container = document.querySelector('.json-viewer-container');" +
+                "const jsonContainer = document.querySelector('.json-container');" +
+                "document.body.style.overflow = window.originalBodyOverflow || '';" +
+                "document.body.style.position = window.originalBodyPosition || '';" +
+                "document.body.style.width = window.originalBodyWidth || '';" +
+                "document.body.style.height = window.originalBodyHeight || '';" +
+                "document.body.style.top = '';" +
+                "document.body.style.left = '';" +
+                "document.documentElement.style.overflow = '';" +
+                "document.documentElement.style.position = '';" +
+                "const scrollPosition = window.scrollPosition || 0;" +
+                "window.scrollTo(0, scrollPosition);" +
+                "if (window.jsonViewerOriginalStyle !== undefined) {" +
+                "  container.setAttribute('style', window.jsonViewerOriginalStyle);" +
+                "  jsonContainer.setAttribute('style', window.jsonContainerOriginalStyle);" +
+                "} else {" +
+                "  container.removeAttribute('style');" +
+                "  jsonContainer.removeAttribute('style');" +
+                "}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Exit full screen error: {ex.Message}");
+        }
+    }
+
+    StateHasChanged();
+}
+#endregion
+
+#region Expand and Collapse - Node expansion and collapse management
+private void ToggleExpandAll()
+{
+    allExpanded = !allExpanded;
+    expandedStates.Clear();
+
+    if (!allExpanded)
+    {
+        var containers = GetAllContainers(jsonToken);
+        foreach (var container in containers)
+        {
+            expandedStates[container.GetHashCode().ToString()] = false;
+        }
+    }
+
+    StateHasChanged();
+}
+
+private IEnumerable<JToken> GetAllContainers(JToken token)
+{
+    if (token is JObject obj)
+    {
+        yield return obj;
+        foreach (var prop in obj.Properties())
+        {
+            foreach (var child in GetAllContainers(prop.Value))
+            {
+                yield return child;
+            }
+        }
+    }
+    else if (token is JArray arr)
+    {
+        yield return arr;
+        foreach (var item in arr)
+        {
+            foreach (var child in GetAllContainers(item))
+            {
+                yield return child;
+            }
+        }
+    }
+}
+
+private void ToggleExpand(string id)
+{
+    expandedStates[id] = !expandedStates.GetValueOrDefault(id, true);
+    StateHasChanged();
+}
+#endregion
+
+#region Type Filter Operations - Data type filtering functionality
+private void ToggleTypeFilter()
+{
+    showTypeFilter = !showTypeFilter;
+}
+
+private void ToggleTypeSelection(string type, bool isSelected)
+{
+    if (isSelected)
+    {
+        selectedTypes.Add(type);
+    }
+    else
+    {
+        selectedTypes.Remove(type);
+    }
+    StateHasChanged();
+}
+
+private void SelectAllTypes()
+{
+    selectedTypes = new HashSet<string>(availableTypes);
+    StateHasChanged();
+}
+
+private void DeselectAllTypes()
+{
+    selectedTypes.Clear();
+    StateHasChanged();
+}
+
+private void ClearAllFilters()
+{
+    selectedTypes = new HashSet<string>(availableTypes);
+    StateHasChanged();
+}
+
+private bool HasActiveFilters => selectedTypes.Count != availableTypes.Count || !string.IsNullOrEmpty(searchText);
+
+private bool ShouldDisplayToken(JToken token)
+{
+    if (selectedTypes.Count == availableTypes.Count)
+        return true;
+
+    var tokenType = GetTokenType(token);
+    return selectedTypes.Contains(tokenType);
+}
+
+private string GetTokenType(JToken token)
+{
+    return token.Type switch
+    {
+        JTokenType.String => "String",
+        JTokenType.Integer => "Number",
+        JTokenType.Float => "Number",
+        JTokenType.Boolean => "Boolean",
+        JTokenType.Null => "Null",
+        JTokenType.Array => "Array",
+        JTokenType.Object => "Object",
+        _ => "Other"
+    };
+}
+#endregion
+
+#region Helper Classes - Supporting data structures
+private class JsonLine
+{
+    public int Number { get; set; }
+    public string Content { get; set; }
+    public bool IsActive { get; set; }
+    public JToken Token { get; set; }
+}
+
+private class CursorPosition
+{
+    public int Line { get; set; }
+    public int Column { get; set; }
+}
+
+private class ValidationResult
+{
+    public bool IsValid { get; set; }
+    public string ErrorMessage { get; set; }
+    public int LineNumber { get; set; }
+    public int LinePosition { get; set; }
+}
+
+private class JsonStatistics
+{
+    public int TotalProperties { get; set; }
+    public int ObjectCount { get; set; }
+    public int ArrayCount { get; set; }
+    public int ArrayItems { get; set; }
+    public int StringCount { get; set; }
+    public int NumberCount { get; set; }
+    public int BooleanCount { get; set; }
+    public int NullCount { get; set; }
+    public int MaxDepth { get; set; }
+    public long RawSize { get; set; }
+    public long FormattedSize { get; set; }
+    public double AvgPropertiesPerObject { get; set; }
+    public double AvgArrayLength { get; set; }
+    public int TotalStringLength { get; set; }
+    public int MaxStringLength { get; set; }
+    public int TotalNumberLength { get; set; }
+    public Dictionary<string, int> PropertyCounts { get; set; } = new Dictionary<string, int>();
+}
+#endregion
+
+#region Show Notification
+
+private async Task ShowNotification(string message, string type = "info")
+{
+    await jsRuntime.InvokeVoidAsync("alert", message);
+    // یا می‌تونید یک Toast ساده خودتون بسازید
+}
+
+#endregion
+
+}
+
+<style>
+    /* #region Container Base Styles - Main container and layout structure */
+    .json-viewer-container {
+        font-family: Consolas, 'Courier New', monospace;
+        font-size: 14px;
+        line-height: 1.4;
+        transition: all 0.3s ease;
+        position: relative;
+        padding: 15px;
+        border-radius: 5px;
+        border: 1px solid #cccccc;
+    }
+
+    .json-content-wrapper {
+        position: relative;
+        min-height: 600px;
+    }
+
+    .json-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .json-container {
+        display: block;
+        font-family: 'Consolas', 'Monaco', monospace;
+        background-color: #ffffff;
+        border: 1px solid #cccccc;
+        border-radius: 4px;
+        overflow: auto;
+        max-height: 600px;
+    }
+    /* #endregion */
+
+    /* #region Line Numbers - Line numbering display and styling */
+    .line-numbers-column {
+        background-color: #f5f5f5;
+        padding: 0 12px;
+        border-right: 1px solid #cccccc;
+        text-align: right;
+        user-select: none;
+        min-width: 40px;
+        flex-shrink: 0;
+    }
+
+    .line-numbers {
+        display: none;
+    }
+
+    .line-number {
+        color: #237893;
+        line-height: 1.5;
+        height: 1.5em;
+    }
+
+        .line-number.active {
+            color: #007acc;
+            font-weight: bold;
+        }
+
+    .json-line {
+        display: flex;
+        align-items: flex-start;
+        min-height: 1.4em;
+        width: 100%;
+    }
+
+    .json-line-number {
+        flex: 0 0 60px;
+        text-align: right;
+        padding-right: 12px;
+        color: #237893;
+        font-size: 14px;
+        line-height: 1.4;
+        user-select: none;
+        border-right: 1px solid #cccccc;
+        background-color: #f5f5f5;
+    }
+
+        .json-line-number.active {
+            background-color: #add6ff;
+            color: #000000;
+            font-weight: bold;
+        }
+
+    .json-line-content {
+        flex: 1;
+        padding-left: 12px;
+        min-width: 0;
+    }
+
+    .json-content-column {
+        padding: 0 12px;
+        flex-grow: 1;
+        min-width: 0;
+    }
+
+    .json-line-container {
+        display: flex;
+        width: 100%;
+    }
+
+    .json-content-column > div {
+        line-height: 1.5;
+    }
+    /* #endregion */
+
+    /* #region JSON Syntax Colors - Syntax highlighting for different JSON types */
+    .json-property-name {
+        color: #9b46b0;
+        font-weight: bold;
+    }
+
+    .json-string {
+        color: #a31515;
+    }
+
+    .json-number {
+        color: #098658;
+    }
+
+    .json-boolean {
+        color: #0000ff;
+    }
+
+    .json-null {
+        color: #808080;
+    }
+
+    .json-punctuation {
+        color: #000000;
+        margin-right: 4px;
+    }
+
+    .json-toggle {
+        margin-left: 8px;
+        cursor: pointer;
+        color: #666;
+        user-select: none;
+        font-weight: bold;
+        width: 16px;
+        display: inline-block;
+        text-align: center;
+    }
+
+    .json-collapsed {
+        color: #999;
+        font-style: italic;
+        margin-left: 5px;
+    }
+
+    .json-property, .json-array-item {
+        margin-left: 15px;
+        margin: 2px 0;
+    }
+    /* #endregion */
+
+    /* #region JSON Path Display - JSON path visualization */
+    .json-path-display {
+        background-color: #f0f0f0;
+        padding: 2px 6px;
+        border-radius: 3px;
+        margin-bottom: 2px;
+        font-size: 11px;
+        color: #666;
+        cursor: default;
+        display: inline-block;
+        font-family: Consolas, 'Courier New', monospace;
+    }
+    /* #endregion */
+
+    /* #region Search Functionality - Search UI and highlighting */
+    .json-text-search {
+        display: flex;
+        align-items: center;
+        margin-left: 50px;
+    }
+
+        .json-text-search input {
+            width: 300px;
+            direction: ltr;
+        }
+
+    .json-navigation-buttons {
+        display: flex;
+        align-items: center;
+        margin-left: 10px;
+    }
+
+    .search-status, .filter-status, .validation-status {
+        direction: ltr;
+        font-size: 15px;
+        margin-bottom: 10px;
+    }
+
+    mark {
+        background-color: yellow;
+        padding: 0 2px;
+        border-radius: 2px;
+        font-weight: bold;
+    }
+
+        mark.current-match {
+            background-color: #f9b54a;
+            color: black;
+        }
+
+    .highlight-pulse {
+        animation: pulse 1s;
+    }
+
+    @@keyframes pulse {
+        0% {
+            background-color: #ff9900;
+        }
+
+        50% {
+            background-color: #ffcc00;
+        }
+
+        100% {
+            background-color: #ff9900;
+        }
+    }
+    /* #endregion */
+
+    /* #region Vertical Buttons - Vertical button panel layout */
+    .json-vertical-buttons {
+        align-self: flex-start;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+        .json-vertical-buttons .btn span {
+            display: none;
+        }
+
+        .json-vertical-buttons .btn {
+            justify-content: center;
+        }
+
+    .toggle-theme-btn {
+        margin-top: auto !important;
+    }
+    /* #endregion */
+
+    /* #region Upper Buttons - Top button bar layout */
+    .upper-buttoms {
+        margin-left: 55px;
+    }
+
+    .upper-buttoms-full-screen {
+        margin-left: 160px;
+    }
+
+    .selected-btn-light-them {
+        background-color: #e4e6f1;
+    }
+    /* #endregion */
+
+    /* #region Dropdown Styles - Dropdown menu styling */
+    .dropdown-item {
+        cursor: pointer;
+    }
+
+    .dropdown-menu {
+        padding: 10px;
+        min-width: 200px;
+    }
+
+    .dropdown-header {
+        font-weight: bold;
+        color: #495057;
+    }
+    /* #endregion */
+
+    /* #region Statistics Panel - Statistics display panel */
+    .stats-panel {
+        direction: ltr;
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+
+    .stats-content {
+        overflow-y: auto;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 8px 12px;
+    }
+
+    .stat-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+        .stat-item.full-width {
+            grid-column: 1 / -1;
+        }
+
+    .stat-label {
+        font-weight: 500;
+        color: #495057;
+        font-size: 13px;
+    }
+
+    .stat-value {
+        font-weight: bold;
+        color: #0c5460;
+        font-size: 13px;
+    }
+
+    .stats-panel-vertical {
+        width: 280px;
+        background-color: #d1ecf1;
+        border: 1px solid #bee5eb;
+        border-radius: 4px;
+        display: flex;
+        flex-direction: column;
+        max-height: calc(100vh - 120px);
+        overflow: hidden;
+    }
+
+    .stats-header {
+        background-color: #bee5eb;
+        border-bottom: 1px solid #abdde5;
+    }
+
+    .stats-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .stats-content::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    .stats-content::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 3px;
+    }
+
+    .stats-content::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 3px;
+    }
+    /* #endregion */
+
+    /* #region Base64 Modal - Base64 encode/decode modal */
+    .modal-backdrop {
+        opacity: 0.5;
+        background-color: #000;
+    }
+
+    .modal {
+        z-index: 10000;
+    }
+
+    .modal-content {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+    /* #endregion */
+
+    /* #region Light Theme - Light color scheme */
+    .light-theme {
+        background-color: #ffffff;
+        color: #333333;
+    }
+
+        .light-theme .json-container {
+            background-color: #ffffff;
+            color: #333333;
+        }
+
+        .light-theme .btn-light {
+            background-color: #f3f3f3;
+            color: #333333;
+            border-color: #cecece;
+        }
+
+            .light-theme .btn-light:hover {
+                background-color: #e5e5e5;
+                border-color: #adadad;
+            }
+
+        .light-theme .form-control {
+            background-color: #ffffff;
+            color: #333333;
+            border-color: #cecece;
+        }
+
+        .light-theme .alert-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border-color: #bee5eb;
+        }
+
+        .light-theme .json-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .light-theme .json-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 6px;
+        }
+
+            .light-theme .json-container::-webkit-scrollbar-thumb:hover {
+                background: #a8a8a8;
+            }
+
+        .light-theme.full-screen {
+            background-color: #FFFFFF !important;
+            color: #333333 !important;
+        }
+
+            .light-theme.full-screen .json-container {
+                background-color: #FFFFFF !important;
+                color: #333333 !important;
+                border: 1px solid #cecece !important;
+            }
+    /* #endregion */
+
+    /* #region Dark Theme - Dark color scheme */
+    .dark-theme {
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        border-color: #3e3e42;
+    }
+
+        .dark-theme .line-numbers-column {
+            background-color: #1e1e1e;
+            border-right-color: #3e3e42;
+        }
+
+        .dark-theme .line-number {
+            color: #858585;
+        }
+
+        .dark-theme .json-line-number {
+            background-color: #1e1e1e;
+            color: #858585;
+            border-right-color: #404040;
+        }
+
+            .dark-theme .json-line-number.active {
+                background-color: #094771;
+                color: #ffffff;
+            }
+
+        .dark-theme .json-container {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            border-color: #3e3e42;
+        }
+
+        .dark-theme .json-property-name {
+            color: #9cdcfe;
+        }
+
+        .dark-theme .json-string {
+            color: #ce9178;
+        }
+
+        .dark-theme .json-number {
+            color: #b5cea8;
+        }
+
+        .dark-theme .json-boolean {
+            color: #569cd6;
+        }
+
+        .dark-theme .json-null {
+            color: #808080;
+        }
+
+        .dark-theme .json-punctuation {
+            color: #d4d4d4;
+        }
+
+        .dark-theme .json-path-display {
+            background-color: #2d2d30;
+            color: #cccccc;
+        }
+
+        .dark-theme .json-toggle {
+            color: #cccccc;
+        }
+
+        .dark-theme .json-collapsed {
+            color: #808080;
+        }
+
+        .dark-theme .btn-light {
+            background-color: #3c3c3c;
+            color: #cccccc;
+            border-color: #3c3c3c;
+        }
+
+            .dark-theme .btn-light:hover {
+                background-color: #4f4f4f;
+                border-color: #4f4f4f;
+            }
+
+        .dark-theme .form-control {
+            background-color: #3c3c3c;
+            color: #cccccc;
+            border-color: #3c3c3c;
+        }
+
+            .dark-theme .form-control:focus {
+                background-color: #3c3c3c;
+                color: #cccccc;
+                border-color: #007acc;
+                box-shadow: 0 0 0 0.2rem rgba(0, 122, 204, 0.25);
+            }
+
+        .dark-theme .alert-info {
+            background-color: #2c5282;
+            color: #bee3f8;
+            border-color: #2c5282;
+        }
+
+        .dark-theme mark {
+            background-color: #735c0f;
+            color: #ffffff;
+        }
+
+            .dark-theme mark.current-match {
+                background-color: #f9b54a;
+                color: #000000;
+            }
+
+        .dark-theme .dropdown-menu {
+            background-color: #2d2d30;
+            border-color: #3e3e42;
+        }
+
+        .dark-theme .dropdown-item {
+            color: #cccccc;
+            background-color: #2d2d30;
+        }
+
+            .dark-theme .dropdown-item:hover {
+                background-color: #3c3c3c;
+                color: #ffffff;
+            }
+
+        .dark-theme .dropdown-header {
+            color: #9cdcfe;
+        }
+
+        .dark-theme .json-container::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+
+        .dark-theme .json-container::-webkit-scrollbar-thumb {
+            background: #424242;
+            border-radius: 6px;
+            border: 2px solid #1e1e1e;
+        }
+
+            .dark-theme .json-container::-webkit-scrollbar-thumb:hover {
+                background: #4f4f4f;
+            }
+
+        .dark-theme .stats-panel {
+            background-color: #2c5282 !important;
+            border-color: #2a4365 !important;
+        }
+
+        .dark-theme .stats-panel-vertical {
+            background-color: #2c5282;
+            border-color: #2a4365;
+        }
+
+        .dark-theme .stats-header {
+            background-color: #2a4365;
+            border-bottom-color: #1e3a5f;
+        }
+
+        .dark-theme .stat-label {
+            color: #cbd5e0;
+        }
+
+        .dark-theme .stat-value {
+            color: #bee3f8;
+        }
+
+        .dark-theme .stats-content::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+
+        .dark-theme .stats-content::-webkit-scrollbar-thumb {
+            background: #424242;
+        }
+
+        .dark-theme .modal-content {
+            background-color: #2d2d30;
+            color: #cccccc;
+            border-color: #3e3e42;
+        }
+
+        .dark-theme .modal-header {
+            border-bottom-color: #3e3e42;
+            background-color: #252526;
+        }
+
+        .dark-theme .btn-close {
+            filter: invert(1);
+        }
+
+        .dark-theme.full-screen {
+            background-color: #1e1e1e !important;
+            color: #d4d4d4 !important;
+        }
+
+            .dark-theme.full-screen .json-container {
+                background-color: #1e1e1e !important;
+                color: #d4d4d4 !important;
+                border: 1px solid #3e3e42 !important;
+            }
+    /* #endregion */
+
+    /* #region Button Focus States - Focus styling for buttons */
+    .btn:focus {
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
+    .dark-theme .btn:focus {
+        box-shadow: 0 0 0 0.2rem rgba(0, 122, 204, 0.25);
+    }
+    /* #endregion */
+
+    /* #region Scrollbar Styling - Custom scrollbar appearance */
+    .json-container::-webkit-scrollbar {
+        width: 12px;
+    }
+    /* #endregion */
+
+    /* #region Full Screen Mode - Full screen display styling */
+    .full-screen {
+        z-index: 9999;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        padding: 20px;
+        overflow: auto !important;
+        margin: 0 !important;
+        border: none !important;
+    }
+
+        .full-screen .json-container {
+            max-height: calc(100vh - 120px) !important;
+            height: auto !important;
+        }
+
+        .full-screen .json-vertical-buttons .btn span {
+            display: inline;
+            margin-right: 5px;
+        }
+
+        .full-screen .json-vertical-buttons .btn {
+            justify-content: flex-start;
+            padding: 8px 12px;
+        }
+
+        .full-screen .stats-panel-vertical {
+            height: calc(100vh - 120px);
+        }
+
+    .full-screen-json {
+        height: calc(100vh - 100px) !important;
+        max-height: none !important;
+    }
+
+    body.full-screen-active, html.full-screen-active {
+        overflow: hidden !important;
+        position: fixed !important;
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    /* #endregion */
+
+    /* #region Smooth Transitions - Animation transitions */
+    .json-viewer-container,
+    .json-container,
+    .btn,
+    .form-control,
+    .json-property-name,
+    .json-string,
+    .json-number,
+    .json-boolean,
+    .json-null,
+    .json-punctuation {
+        transition: all 0.3s ease;
+    }
+    /* #endregion */
+
+    /* #region Responsive Design - Mobile and tablet adaptations */
+    @@media (max-width: 768px) {
+        .json-text-search input {
+            width: 200px !important;
+        }
+
+        .upper-buttoms {
+            margin-left: 0;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .json-vertical-buttons {
+            position: static;
+            flex-direction: row !important;
+            margin-top: 10px;
+        }
+
+            .json-vertical-buttons .btn {
+                margin-bottom: 0 !important;
+                margin-right: 5px;
+            }
+
+        .search-status, .filter-status, .validation-status {
+            margin-left: 0 !important;
+        }
+
+        .stats-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .stats-panel {
+            margin-left: 0 !important;
+        }
+
+        .stats-panel-vertical {
+            width: 220px;
+        }
+
+        .json-line-number {
+            width: 30px;
+            min-width: 30px;
+            padding: 0 4px;
+            font-size: 10px;
+        }
+
+        .json-line-content {
+            padding: 0 4px;
+            font-size: 11px;
+        }
+    }
+    /* #endregion */
+
+    /* #region Icons */
+
+    .icon {
+        display: inline-block;
+        vertical-align: middle;
+        flex-shrink: 0;
+    }
+
+    /* #endregion */
+
+</style>
