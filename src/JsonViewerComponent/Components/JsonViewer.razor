@@ -185,10 +185,12 @@
                 <Icon Name="@(allExpanded ? "dash-square" : "plus-square")" />
             </button>
 
-            <!-- Full Screen Button -->
-            <button @onclick="@ToggleFullScreen" class="btn btn-sm btn-light mb-2 @(isFullScreen ? "selected-btn-light-them" : "")" title="@(isFullScreen ? "Exit full screen" : "Enter full screen")">
-                <Icon Name="@(isFullScreen ? "fullscreen-exit" : "arrows-fullscreen")" />
-            </button>
+            <!-- Full Screen Toggle -->
+            <FullScreenToggle IsFullScreen="@isFullScreen"
+                              IsFullScreenChanged="@((value) => { isFullScreen = value; StateHasChanged(); })"
+                              IsDarkTheme="@isDarkTheme"
+                              OnNotification="@HandleNotification" />
+
 
             <!-- Copy Button -->
             <CopyButton Content="@GetFormattedJson()"
@@ -200,16 +202,15 @@
                           JsonData="@JsonData"
                           OnNotification="@HandleNotification" />
 
-
             <!-- Theme Toggle Button -->
-            <button @onclick="@ToggleTheme" class="btn btn-sm btn-light mb-2 toggle-theme-btn" title="Toggle theme">
-                <Icon Name="@(isDarkTheme ? "sun-fill" : "moon-fill")" />
-            </button>
+            <ThemeToggle IsDarkTheme="@isDarkTheme"
+                         IsDarkThemeChanged="@HandleThemeChange"
+                         OnNotification="@HandleNotification" />
+
         </div>
 
     </div>
 </div>
-
 
 @code {
 
@@ -256,7 +257,7 @@
 
     #region Statistics Panel - JSON statistics and analysis
     private bool showStatsPanel = false;
-    private JsonStats jsonStats;  
+    private JsonStats jsonStats;
     #endregion
 
     #region Type Filtering - Data type filter functionality
@@ -1195,24 +1196,38 @@ private string GetValueClass(JToken token)
     }
     #endregion
 
-    #region Theme Management - Theme switching and persistence
-    private async Task ToggleTheme()
-    {
-        isDarkTheme = !isDarkTheme;
+    #region Theme Management
 
-        try
+
+    /// <summary>
+    /// مدیریت تغییر تم - دریافت از ThemeToggle Component
+    /// </summary>
+    private async Task HandleThemeChange(bool newTheme)
+    {
+        isDarkTheme = newTheme;
+
+        // اگر در حالت Full Screen هستیم، تم را به body هم اعمال کنیم
+        if (isFullScreen)
         {
-            await jsRuntime.InvokeVoidAsync("localStorage.setItem",
-                "jsonViewerTheme",
-                isDarkTheme ? "dark" : "light");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error saving theme preference: {ex.Message}");
+            await ApplyFullScreenTheme();
         }
 
         StateHasChanged();
     }
+
+    /// <summary>
+    /// اعمال تم به body در حالت Full Screen
+    /// </summary>
+    private async Task ApplyFullScreenTheme()
+    {
+        var backgroundColor = isDarkTheme ? "#1e1e1e" : "#ffffff";
+        var textColor = isDarkTheme ? "#d4d4d4" : "#333333";
+
+        await jsRuntime.InvokeVoidAsync("eval",
+            $"document.body.style.backgroundColor = '{backgroundColor}';" +
+            $"document.body.style.color = '{textColor}';");
+    }
+
     #endregion
 
     #region JSON Path Operations - JSON path display and management
@@ -1273,92 +1288,6 @@ private string GetValueClass(JToken token)
         await ShowNotification(message, "error");
     }
 
-    #endregion
-
-    #region Full Screen Mode - Full screen toggle and management
-    private async Task ToggleFullScreen()
-    {
-        isFullScreen = !isFullScreen;
-
-        if (isFullScreen)
-        {
-            try
-            {
-                await jsRuntime.InvokeVoidAsync("eval",
-                    "if (window.jsonViewerOriginalStyle === undefined) {" +
-                    "  const container = document.querySelector('.json-viewer-container');" +
-                    "  window.jsonViewerOriginalStyle = container.getAttribute('style') || '';" +
-                    "  window.jsonContainerOriginalStyle = document.querySelector('.json-container').getAttribute('style') || '';" +
-                    "  window.originalBodyOverflow = document.body.style.overflow;" +
-                    "  window.originalBodyPosition = document.body.style.position;" +
-                    "  window.originalBodyWidth = document.body.style.width;" +
-                    "  window.originalBodyHeight = document.body.style.height;" +
-                    "  window.scrollPosition = window.pageYOffset || document.documentElement.scrollTop;" +
-                    "}");
-
-                var backgroundColor = isDarkTheme ? "#36363e" : "white";
-                var textColor = isDarkTheme ? "#D4D4D4" : "#1E1E1E";
-
-                await jsRuntime.InvokeVoidAsync("eval",
-                    "const container = document.querySelector('.json-viewer-container');" +
-                    "container.style.position = 'fixed';" +
-                    "container.style.top = '0';" +
-                    "container.style.left = '0';" +
-                    "container.style.width = '100vw';" +
-                    "container.style.height = '100vh';" +
-                    "container.style.zIndex = '9999';" +
-                    "container.style.backgroundColor = '" + backgroundColor + "';" +
-                    "container.style.color = '" + textColor + "';" +
-                    "container.style.padding = '20px';" +
-                    "container.style.overflow = 'auto';" +
-                    "container.style.margin = '0';" +
-                    "document.body.style.overflow = 'hidden';" +
-                    "document.body.style.position = 'fixed';" +
-                    "document.body.style.width = '100%';" +
-                    "document.body.style.height = '100%';" +
-                    "document.body.style.top = '0';" +
-                    "document.body.style.left = '0';" +
-                    "document.documentElement.style.overflow = 'hidden';" +
-                    "document.documentElement.style.position = 'fixed';");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Full screen error: {ex.Message}");
-            }
-        }
-        else
-        {
-            try
-            {
-                await jsRuntime.InvokeVoidAsync("eval",
-                    "const container = document.querySelector('.json-viewer-container');" +
-                    "const jsonContainer = document.querySelector('.json-container');" +
-                    "document.body.style.overflow = window.originalBodyOverflow || '';" +
-                    "document.body.style.position = window.originalBodyPosition || '';" +
-                    "document.body.style.width = window.originalBodyWidth || '';" +
-                    "document.body.style.height = window.originalBodyHeight || '';" +
-                    "document.body.style.top = '';" +
-                    "document.body.style.left = '';" +
-                    "document.documentElement.style.overflow = '';" +
-                    "document.documentElement.style.position = '';" +
-                    "const scrollPosition = window.scrollPosition || 0;" +
-                    "window.scrollTo(0, scrollPosition);" +
-                    "if (window.jsonViewerOriginalStyle !== undefined) {" +
-                    "  container.setAttribute('style', window.jsonViewerOriginalStyle);" +
-                    "  jsonContainer.setAttribute('style', window.jsonContainerOriginalStyle);" +
-                    "} else {" +
-                    "  container.removeAttribute('style');" +
-                    "  jsonContainer.removeAttribute('style');" +
-                    "}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Exit full screen error: {ex.Message}");
-            }
-        }
-
-        StateHasChanged();
-    }
     #endregion
 
     #region Expand and Collapse - Node expansion and collapse management
@@ -1513,12 +1442,13 @@ private string GetValueClass(JToken token)
 
     #region Export Helper Methods
 
-        private async Task HandleNotification((string message, string type) notification)
-        {
-            await ShowNotification(notification.message, notification.type);
-        }
+    private async Task HandleNotification((string message, string type) notification)
+    {
+        await ShowNotification(notification.message, notification.type);
+    }
 
-    #endregion
+        #endregion
+
 }
 
 <style>

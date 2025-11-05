@@ -1,0 +1,162 @@
+﻿@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+
+<button @onclick="@HandleToggleFullScreen"
+        class="btn btn-sm btn-light mb-2"
+        title="@(IsFullScreen ? "Exit Full Screen (Esc)" : "Enter Full Screen (F11)")">
+    <Icon Name="@(IsFullScreen ? "fullscreen-exit" : "arrows-fullscreen")" />
+    <span>@(IsFullScreen ? "Exit" : "Full")</span>
+</button>
+
+@code {
+    #region Parameters
+
+    [Parameter]
+    public bool IsFullScreen { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsFullScreenChanged { get; set; }
+
+    [Parameter]
+    public bool IsDarkTheme { get; set; }
+
+    [Parameter]
+    public EventCallback<(string message, string type)> OnNotification { get; set; }
+
+    #endregion
+
+    #region Full Screen Toggle Logic
+
+    private async Task HandleToggleFullScreen()
+    {
+        try
+        {
+            var newState = !IsFullScreen;
+
+            if (newState)
+            {
+                await EnterFullScreen();
+            }
+            else
+            {
+                await ExitFullScreen();
+            }
+
+            await IsFullScreenChanged.InvokeAsync(newState);
+
+            var message = newState ? "Entered Full Screen mode" : "Exited Full Screen mode";
+            await OnNotification.InvokeAsync((message, "success"));
+        }
+        catch (Exception ex)
+        {
+            await OnNotification.InvokeAsync(($"Error toggling Full Screen: {ex.Message}", "error"));
+        }
+    }
+
+    private async Task EnterFullScreen()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("eval",
+                @"if (window.jsonViewerOriginalStyle === undefined) {
+                    const container = document.querySelector('.json-viewer-container');
+                    window.jsonViewerOriginalStyle = container?.getAttribute('style') || '';
+                    window.jsonContainerOriginalStyle = document.querySelector('.json-container')?.getAttribute('style') || '';
+                    window.originalBodyOverflow = document.body.style.overflow;
+                    window.originalBodyPosition = document.body.style.position;
+                    window.originalBodyWidth = document.body.style.width;
+                    window.originalBodyHeight = document.body.style.height;
+                    window.scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+                }");
+
+            var backgroundColor = IsDarkTheme ? "#36363e" : "white";
+            var textColor = IsDarkTheme ? "#D4D4D4" : "#1E1E1E";
+
+            await JSRuntime.InvokeVoidAsync("eval",
+                $@"const container = document.querySelector('.json-viewer-container');
+                if (container) {{
+                    container.style.position = 'fixed';
+                    container.style.top = '0';
+                    container.style.left = '0';
+                    container.style.width = '100vw';
+                    container.style.height = '100vh';
+                    container.style.zIndex = '9999';
+                    container.style.margin = '0';
+                    container.style.padding = '20px';
+                    container.style.backgroundColor = '{backgroundColor}';
+                    container.style.color = '{textColor}';
+                    container.style.overflow = 'hidden';
+                }}
+
+                const jsonContainer = document.querySelector('.json-container');
+                if (jsonContainer) {{
+                    jsonContainer.style.maxHeight = 'calc(100vh - 120px)';
+                    jsonContainer.style.height = 'calc(100vh - 120px)';
+                }}
+
+                document.body.style.overflow = 'hidden';
+                document.body.style.position = 'fixed';
+                document.body.style.width = '100%';
+                document.body.style.height = '100%';
+                document.documentElement.classList.add('full-screen-active');
+                document.body.classList.add('full-screen-active');");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error entering full screen: {ex.Message}");
+            throw;
+        }
+    }
+
+    private async Task ExitFullScreen()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("eval",
+                @"const container = document.querySelector('.json-viewer-container');
+                if (container && window.jsonViewerOriginalStyle !== undefined) {
+                    container.setAttribute('style', window.jsonViewerOriginalStyle);
+                }
+
+                const jsonContainer = document.querySelector('.json-container');
+                if (jsonContainer && window.jsonContainerOriginalStyle !== undefined) {
+                    jsonContainer.setAttribute('style', window.jsonContainerOriginalStyle);
+                }
+
+                if (window.originalBodyOverflow !== undefined) {
+                    document.body.style.overflow = window.originalBodyOverflow;
+                }
+                if (window.originalBodyPosition !== undefined) {
+                    document.body.style.position = window.originalBodyPosition;
+                }
+                if (window.originalBodyWidth !== undefined) {
+                    document.body.style.width = window.originalBodyWidth;
+                }
+                if (window.originalBodyHeight !== undefined) {
+                    document.body.style.height = window.originalBodyHeight;
+                }
+
+                document.documentElement.classList.remove('full-screen-active');
+                document.body.classList.remove('full-screen-active');
+
+                if (window.scrollPosition !== undefined) {
+                    window.scrollTo(0, window.scrollPosition);
+                }
+
+                delete window.jsonViewerOriginalStyle;
+                delete window.jsonContainerOriginalStyle;
+                delete window.originalBodyOverflow;
+                delete window.originalBodyPosition;
+                delete window.originalBodyWidth;
+                delete window.originalBodyHeight;
+                delete window.scrollPosition;");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error exiting full screen: {ex.Message}");
+            throw;
+        }
+    }
+
+    #endregion
+}

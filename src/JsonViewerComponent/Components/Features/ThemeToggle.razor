@@ -1,0 +1,85 @@
+﻿@* ThemeToggle.razor - کامپوننت دکمه تغییر تم با قابلیت‌های کامل *@
+
+<button @onclick="@HandleToggle"
+        class="btn btn-sm btn-light mb-2 toggle-theme-btn"
+        title="@GetTooltip()"
+        disabled="@IsDisabled">
+    <Icon Name="@GetIconName()" />
+</button>
+
+@code {
+    #region Parameters
+
+    /// <summary>
+    /// وضعیت فعلی تم (Dark = true, Light = false)
+    /// </summary>
+    [Parameter]
+    public bool IsDarkTheme { get; set; }
+
+    /// <summary>
+    /// رویداد تغییر تم - برای Two-Way Binding
+    /// </summary>
+    [Parameter]
+    public EventCallback<bool> IsDarkThemeChanged { get; set; }
+
+    /// <summary>
+    /// رویداد نمایش Notification
+    /// </summary>
+    [Parameter]
+    public EventCallback<(string message, string type)> OnNotification { get; set; }
+
+    /// <summary>
+    /// غیرفعال کردن دکمه (اختیاری)
+    /// </summary>
+    [Parameter]
+    public bool IsDisabled { get; set; }
+
+    #endregion
+
+    #region Private Methods
+
+    /// <summary>
+    /// مدیریت کلیک دکمه و تغییر تم
+    /// </summary>
+    private async Task HandleToggle()
+    {
+        if (IsDisabled) return;
+
+        var newTheme = !IsDarkTheme;
+
+        // اطلاع‌رسانی به Parent Component
+        if (IsDarkThemeChanged.HasDelegate)
+        {
+            await IsDarkThemeChanged.InvokeAsync(newTheme);
+        }
+
+        // نمایش Notification
+        if (OnNotification.HasDelegate)
+        {
+            var themeName = newTheme ? "Dark" : "Light";
+            await OnNotification.InvokeAsync(
+                ($"🎨 {themeName} theme activated successfully", "info")
+            );
+        }
+    }
+
+    /// <summary>
+    /// دریافت نام آیکون بر اساس تم فعلی
+    /// </summary>
+    private string GetIconName()
+    {
+        return IsDarkTheme ? "sun-fill" : "moon-fill";
+    }
+
+    /// <summary>
+    /// دریافت متن Tooltip بر اساس تم فعلی
+    /// </summary>
+    private string GetTooltip()
+    {
+        return IsDarkTheme
+            ? "Switch to Light Theme ☀️"
+            : "Switch to Dark Theme 🌙";
+    }
+
+    #endregion
+}
