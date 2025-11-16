@@ -1,34 +1,54 @@
-name: Deploy to GitHub Pages
+name: 🚀 Deploy Blazor WebAssembly (.NET 10) to GitHub Pages
 
 on:
   push:
-    branches: [ "main" ]
-  workflow_dispatch:
+    branches: [ "main" ]     # اجرا با هر Push روی شاخه main
+  workflow_dispatch:          # امکان اجرای دستی از تب Actions
 
 permissions:
-  contents: write
+  contents: write             # مجوز لازم برای نوشتن در شاخه gh-pages
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+    steps:
+      # ۱️⃣ چک‌اوت سورس
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ۲️⃣ نصب SDK .NET 10
+      - name: Setup .NET SDK (10.x)
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
 
-      - name: Publish
-        run: dotnet publish JsonViewer.csproj -c Release -o release --nologo
-
-      - name: Copy wwwroot files
+      # ۳️⃣ بازیابی پکیج‌ها و بیلد پروژه
+      - name: Restore and Build
         run: |
-          cp release/wwwroot/index.html release/wwwroot/404.html
-          touch release/wwwroot/.nojekyll
+          dotnet restore
+          dotnet publish JsonViewer.csproj -c Release -o release --nologo
 
+      # ۴️⃣ اصلاح فایل‌های لازم برای GitHub Pages
+      - name: Prepare deployment content
+        run: |
+          # اطمینان از وجود پوشه خروجی
+          mkdir -p release/wwwroot
+          # اصلاح base href برای مسیر /JsonViewer/
+          sed -i 's|<base href="/"|<base href="/JsonViewer/"|' release/wwwroot/index.html
+          # افزودن .nojekyll برای جلوگیری از حذف فایل‌های زیرشاخه
+          echo "" > release/wwwroot/.nojekyll
+          # ایجاد 404.html برای مسیرهای SPA
+          cp release/wwwroot/index.html release/wwwroot/404.html
+
+      # ۵️⃣ استقرار روی شاخه gh-pages
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: release/wwwroot
+          branch: gh-pages         # برنچ مقصد
+          folder: release/wwwroot  # مسیر خروجی منتشرشده
+          clean: true              # پاکسازی فایل‌های قبلی
+
+      # ✅ اختیاری: پیام وضعیت در لاگ‌ها
+      - name: Deployment summary
+        run: echo "✅ Deployment completed successfully for .NET 10 Blazor WASM → branch gh-pages"
