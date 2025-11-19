@@ -1,85 +1,141 @@
-﻿@* ThemeToggle.razor - کامپوننت دکمه تغییر تم با قابلیت‌های کامل *@
+﻿@using Microsoft.JSInterop
+@inject IJSRuntime jsRuntime
 
-<button @onclick="@HandleToggle"
-        class="btn btn-sm btn-light mb-2 toggle-theme-btn"
-        title="@GetTooltip()"
-        disabled="@IsDisabled">
-    <Icon Name="@GetIconName()" />
+<button @onclick="ToggleTheme"
+        class="btn btn-sm btn-light mb-2 toggle-theme-btn @GetThemeClass()"
+        title="@GetTooltip()">
+    <Icon Name="@GetIconName()" Size="18" />
 </button>
 
 @code {
-    #region Parameters
-
-    /// <summary>
-    /// وضعیت فعلی تم (Dark = true, Light = false)
-    /// </summary>
     [Parameter]
-    public bool IsDarkTheme { get; set; }
+    public bool IsDark { get; set; }
 
-    /// <summary>
-    /// رویداد تغییر تم - برای Two-Way Binding
-    /// </summary>
     [Parameter]
-    public EventCallback<bool> IsDarkThemeChanged { get; set; }
+    public EventCallback<bool> OnThemeChanged { get; set; }
 
-    /// <summary>
-    /// رویداد نمایش Notification
-    /// </summary>
-    [Parameter]
-    public EventCallback<(string message, string type)> OnNotification { get; set; }
-
-    /// <summary>
-    /// غیرفعال کردن دکمه (اختیاری)
-    /// </summary>
-    [Parameter]
-    public bool IsDisabled { get; set; }
-
-    #endregion
-
-    #region Private Methods
-
-    /// <summary>
-    /// مدیریت کلیک دکمه و تغییر تم
-    /// </summary>
-    private async Task HandleToggle()
+    protected override async Task OnInitializedAsync()
     {
-        if (IsDisabled) return;
-
-        var newTheme = !IsDarkTheme;
-
-        // اطلاع‌رسانی به Parent Component
-        if (IsDarkThemeChanged.HasDelegate)
+        try
         {
-            await IsDarkThemeChanged.InvokeAsync(newTheme);
+            // 🔍 جستجوی تمام Session Keys حاوی 'theme'
+            var detectedTheme = await jsRuntime.InvokeAsync<string>("eval", @"
+                (function() {
+                    // اولویت 1: سشن خود کامپوننت
+                    const ownTheme = localStorage.getItem('json-viewer-theme');
+                    if (ownTheme) return ownTheme;
+
+                    // اولویت 2: جستجو در تمام keys
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const key = localStorage.key(i);
+                        if (key && (key.toLowerCase().includes('theme'))) {
+                            const value = localStorage.getItem(key);
+                            // فقط مقادیر معتبر
+                            if (value === 'light' || value === 'Light' ||
+                                value === 'dark' || value === 'Dark') {
+                                return value;
+                            }
+                        }
+                    }
+
+                    // پیشفرض
+                    return 'light';
+                })()
+            ");
+
+            // Normalize کردن مقدار
+            if (!string.IsNullOrEmpty(detectedTheme))
+            {
+                IsDark = detectedTheme.ToLower() == "dark";
+
+                // ذخیره در سشن خود کامپوننت
+                await jsRuntime.InvokeVoidAsync("localStorage.setItem",
+                    "json-viewer-theme", IsDark ? "dark" : "light");
+
+                // اطلاع به JsonViewer
+                if (OnThemeChanged.HasDelegate)
+                {
+                    await OnThemeChanged.InvokeAsync(IsDark);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading theme: {ex.Message}");
+            IsDark = false; // پیشفرض light
+        }
+    }
+
+    private async Task ToggleTheme()
+    {
+        var newTheme = !IsDark;
+        var themeValue = newTheme ? "dark" : "light";
+
+        try
+        {
+            // 🔄 آپدیت تمام Session Keys حاوی 'theme'
+            await jsRuntime.InvokeVoidAsync("eval", $@"
+                (function() {{
+                    // لیست تمام keys حاوی theme
+                    const themeKeys = [];
+                    for (let i = 0; i < localStorage.length; i++) {{
+                        const key = localStorage.key(i);
+                        if (key && (key.toLowerCase().includes('theme'))) {{
+                            themeKeys.push(key);
+                        }}
+                    }}
+
+                    // آپدیت همه
+                    themeKeys.forEach(key => {{
+                        localStorage.setItem(key, '{themeValue}');
+                    }});
+
+                    // اگر سشن json-viewer-theme وجود نداشت، بسازش
+                    if (!themeKeys.includes('json-viewer-theme')) {{
+                        localStorage.setItem('json-viewer-theme', '{themeValue}');
+                    }}
+                }})()
+            ");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error syncing theme: {ex.Message}");
         }
 
-        // نمایش Notification
-        if (OnNotification.HasDelegate)
+        // اطلاع به JsonViewer
+        if (OnThemeChanged.HasDelegate)
         {
-            var themeName = newTheme ? "Dark" : "Light";
-            await OnNotification.InvokeAsync(
-                ($"🎨 {themeName} theme activated successfully", "info")
-            );
+            await OnThemeChanged.InvokeAsync(newTheme);
         }
     }
 
-    /// <summary>
-    /// دریافت نام آیکون بر اساس تم فعلی
-    /// </summary>
-    private string GetIconName()
-    {
-        return IsDarkTheme ? "sun-fill" : "moon-fill";
-    }
+    private string GetIconName() => IsDark ? "sun-fill" : "moon-fill";
 
-    /// <summary>
-    /// دریافت متن Tooltip بر اساس تم فعلی
-    /// </summary>
-    private string GetTooltip()
-    {
-        return IsDarkTheme
-            ? "Switch to Light Theme ☀️"
-            : "Switch to Dark Theme 🌙";
-    }
+    private string GetTooltip() => IsDark ? "Switch to Light Theme ☀️" : "Switch to Dark Theme 🌙";
 
-    #endregion
+    private string GetThemeClass() => IsDark ? "theme-dark" : "theme-light";
 }
+
+<style>
+    .toggle-theme-btn {
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+
+        .toggle-theme-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-theme-btn.theme-dark {
+            background-color: #1e1e1e !important;
+            border-color: #3c3c3c !important;
+            color: #fdb813 !important;
+        }
+
+        .toggle-theme-btn.theme-light {
+            background-color: #ffffff !important;
+            border-color: #dee2e6 !important;
+            color: #4a90e2 !important;
+        }
+</style>

@@ -1,177 +1,418 @@
-﻿@* Statistics Panel Component for JSON Viewer *@
+﻿@using Microsoft.JSInterop
+@using Newtonsoft.Json
+@inject IJSRuntime JSRuntime
+@implements IDisposable
+
+@* Statistics Modal Component *@
 
 @if (IsVisible && Statistics != null)
 {
-    @if (IsFullScreen)
-    {
-        <!-- Vertical Statistics Panel for Full Screen Mode -->
-        <div class="stats-panel-vertical">
-            <div class="stats-header d-flex justify-content-between align-items-center p-2">
-                <h6 class="m-0">JSON Statistics</h6>
-                <button @onclick="HandleClose" class="btn btn-sm btn-light" title="Close statistics">
-                    <Icon Name="x-lg" />
+    <div class="stats-modal-overlay" @onclick="HandleOverlayClick">
+        <div class="stats-modal-container @(IsDarkTheme ? "dark-theme" : "")" @onclick:stopPropagation="true">
+
+            @* Header *@
+            <div class="stats-modal-header">
+                <div class="stats-modal-title">
+                    <Icon Name="bar-chart" Size="20" />
+                    <span>JSON Statistics</span>
+                </div>
+                <button class="stats-modal-close" @onclick="HandleClose" title="Close (ESC)">
+                    <Icon Name="x-lg" Size="20" />
                 </button>
             </div>
-            <div class="stats-content p-2">
-                <div class="stats-list mt-2">
-                    <div class="stat-item">
-                        <span class="stat-label">Total Properties:</span>
-                        <span class="stat-value">@Statistics.TotalProperties</span>
-                    </div>
-                    <hr class="my-2" />
-                    <div class="stat-item">
-                        <span class="stat-label">Objects:</span>
-                        <span class="stat-value">@Statistics.ObjectCount</span>
-                    </div>
-                    <hr class="my-2" />
-                    <div class="stat-item">
-                        <span class="stat-label">Arrays:</span>
-                        <span class="stat-value">@Statistics.ArrayCount</span>
-                    </div>
-                    <hr class="my-2" />
-                    <div class="stat-item">
-                        <span class="stat-label">Strings:</span>
-                        <span class="stat-value">@Statistics.StringCount</span>
-                    </div>
-                    <hr class="my-2" />
-                    <div class="stat-item">
-                        <span class="stat-label">Numbers:</span>
-                        <span class="stat-value">@Statistics.NumberCount</span>
-                    </div>
-                    <hr class="my-2" />
-                    <div class="stat-item">
-                        <span class="stat-label">Booleans:</span>
-                        <span class="stat-value">@Statistics.BooleanCount</span>
-                    </div>
-                    <hr class="my-2" />
-                    <div class="stat-item">
-                        <span class="stat-label">Nulls:</span>
-                        <span class="stat-value">@Statistics.NullCount</span>
-                    </div>
-                    <hr class="my-2" />
-                    <div class="stat-item">
-                        <span class="stat-label">Max Depth:</span>
-                        <span class="stat-value">@Statistics.MaxDepth</span>
-                    </div>
-                    <hr class="my-2" />
-                    <div class="stat-item">
-                        <span class="stat-label">Raw Size:</span>
-                        <span class="stat-value">@FormatBytes(Statistics.RawSize)</span>
-                    </div>
-                    <hr class="my-2" />
-                    <div class="stat-item">
-                        <span class="stat-label">Formatted Size:</span>
-                        <span class="stat-value">@FormatBytes(Statistics.FormattedSize)</span>
-                    </div>
-                    @if (Statistics.ObjectCount > 0)
-                    {
-                        <hr class="my-2" />
-                        <div class="stat-item">
-                            <span class="stat-label">Avg Props/Object:</span>
-                            <span class="stat-value">@Math.Round(Statistics.AvgPropertiesPerObject, 2)</span>
-                        </div>
+
+            @* Chart Section *@
+            <div class="stats-chart-section">
+                <h6 class="chart-title">Data Type Distribution</h6>
+                <div class="stats-pie-chart">
+                    @{
+                        var total = Statistics.StringCount + Statistics.NumberCount +
+                        Statistics.BooleanCount + Statistics.NullCount;
+                        var stringPercent = total > 0 ? (Statistics.StringCount * 100.0 / total) : 0;
+                        var numberPercent = total > 0 ? (Statistics.NumberCount * 100.0 / total) : 0;
+                        var booleanPercent = total > 0 ? (Statistics.BooleanCount * 100.0 / total) : 0;
+                        var nullPercent = total > 0 ? (Statistics.NullCount * 100.0 / total) : 0;
                     }
-                    @if (Statistics.ArrayCount > 0)
-                    {
-                        <hr class="my-2" />
-                        <div class="stat-item">
-                            <span class="stat-label">Avg Array Length:</span>
-                            <span class="stat-value">@Math.Round(Statistics.AvgArrayLength, 2)</span>
+
+                    <div class="pie-chart" style="background: conic-gradient(
+                            from 0deg,
+                            #ce9178 0% @(stringPercent)%,
+                            #b5cea8 @(stringPercent)% @(stringPercent + numberPercent)%,
+                            #569cd6 @(stringPercent + numberPercent)% @(stringPercent + numberPercent + booleanPercent)%,
+                            #808080 @(stringPercent + numberPercent + booleanPercent)% 100%
+                        );">
+                    </div>
+
+                    <div class="chart-legend">
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #ce9178;"></span>
+                            <span class="legend-label">Strings (@Math.Round(stringPercent, 1)%)</span>
                         </div>
-                    }
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #b5cea8;"></span>
+                            <span class="legend-label">Numbers (@Math.Round(numberPercent, 1)%)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #569cd6;"></span>
+                            <span class="legend-label">Booleans (@Math.Round(booleanPercent, 1)%)</span>
+                        </div>
+                        <div class="legend-item">
+                            <span class="legend-color" style="background: #808080;"></span>
+                            <span class="legend-label">Nulls (@Math.Round(nullPercent, 1)%)</span>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    }
-    else
-    {
-        <!-- Horizontal Statistics Panel for Normal Mode -->
-        <div class="stats-panel alert alert-info py-2 px-3 mb-2" style="margin-left: 57px;">
-            <div class="d-flex justify-content-between align-items-center">
-                <h6 class="m-0">JSON Statistics</h6>
-                <button @onclick="HandleClose" class="btn btn-sm btn-light" title="Close statistics">
-                    <Icon Name="x-lg" />
-                </button>
-            </div>
-            <hr class="my-2">
-            <div class="stats-content">
+
+            @* Content *@
+            <div class="stats-modal-content">
                 <div class="stats-grid">
-                    <div class="stat-item">
-                        <span class="stat-label">Total Properties:</span>
-                        <span class="stat-value">@Statistics.TotalProperties</span>
+                    @* Total Properties *@
+                    <div class="stat-card">
+                        <div class="stat-icon icon-properties">
+                            <Icon Name="list-ul" Size="24" />
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-label">Total Properties</div>
+                            <div class="stat-value">@Statistics.TotalProperties</div>
+                        </div>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Objects:</span>
-                        <span class="stat-value">@Statistics.ObjectCount</span>
+
+                    @* Objects *@
+                    <div class="stat-card">
+                        <div class="stat-icon icon-objects">
+                            <Icon Name="braces" Size="24" />
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-label">Objects</div>
+                            <div class="stat-value">@Statistics.ObjectCount</div>
+                        </div>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Arrays:</span>
-                        <span class="stat-value">@Statistics.ArrayCount</span>
+
+                    @* Arrays *@
+                    <div class="stat-card">
+                        <div class="stat-icon icon-arrays">
+                            <Icon Name="collection" Size="24" />
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-label">Arrays</div>
+                            <div class="stat-value">@Statistics.ArrayCount</div>
+                        </div>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Strings:</span>
-                        <span class="stat-value">@Statistics.StringCount</span>
+
+                    @* Strings *@
+                    <div class="stat-card">
+                        <div class="stat-icon icon-strings">
+                            <Icon Name="quote" Size="24" />
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-label">Strings</div>
+                            <div class="stat-value">@Statistics.StringCount</div>
+                        </div>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Numbers:</span>
-                        <span class="stat-value">@Statistics.NumberCount</span>
+
+                    @* Numbers *@
+                    <div class="stat-card">
+                        <div class="stat-icon icon-numbers">
+                            <Icon Name="123" Size="24" />
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-label">Numbers</div>
+                            <div class="stat-value">@Statistics.NumberCount</div>
+                        </div>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Booleans:</span>
-                        <span class="stat-value">@Statistics.BooleanCount</span>
+
+                    @* Booleans *@
+                    <div class="stat-card">
+                        <div class="stat-icon icon-booleans">
+                            <Icon Name="toggle-on" Size="24" />
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-label">Booleans</div>
+                            <div class="stat-value">@Statistics.BooleanCount</div>
+                        </div>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Nulls:</span>
-                        <span class="stat-value">@Statistics.NullCount</span>
+
+                    @* Nulls *@
+                    <div class="stat-card">
+                        <div class="stat-icon icon-nulls">
+                            <Icon Name="slash-circle" Size="24" />
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-label">Nulls</div>
+                            <div class="stat-value">@Statistics.NullCount</div>
+                        </div>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Max Depth:</span>
-                        <span class="stat-value">@Statistics.MaxDepth</span>
+
+                    @* Max Depth *@
+                    <div class="stat-card">
+                        <div class="stat-icon icon-depth">
+                            <Icon Name="layers" Size="24" />
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-label">Max Depth</div>
+                            <div class="stat-value">@Statistics.MaxDepth</div>
+                        </div>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Raw Size:</span>
-                        <span class="stat-value">@FormatBytes(Statistics.RawSize)</span>
+
+                    @* Raw Size *@
+                    <div class="stat-card">
+                        <div class="stat-icon icon-size">
+                            <Icon Name="file-earmark-zip" Size="24" />
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-label">Raw Size</div>
+                            <div class="stat-value">@FormatBytes(Statistics.RawSize)</div>
+                        </div>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Formatted Size:</span>
-                        <span class="stat-value">@FormatBytes(Statistics.FormattedSize)</span>
+
+                    @* Formatted Size *@
+                    <div class="stat-card">
+                        <div class="stat-icon icon-size">
+                            <Icon Name="file-earmark-text" Size="24" />
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-label">Formatted Size</div>
+                            <div class="stat-value">@FormatBytes(Statistics.FormattedSize)</div>
+                        </div>
                     </div>
+
+                    @* Avg Properties/Object *@
                     @if (Statistics.ObjectCount > 0)
                     {
-                        <div class="stat-item">
-                            <span class="stat-label">Avg Props/Object:</span>
-                            <span class="stat-value">@Math.Round(Statistics.AvgPropertiesPerObject, 2)</span>
+                        <div class="stat-card">
+                            <div class="stat-icon icon-average">
+                                <Icon Name="calculator" Size="24" />
+                            </div>
+                            <div class="stat-info">
+                                <div class="stat-label">Avg Props/Object</div>
+                                <div class="stat-value">@Math.Round(Statistics.AvgPropertiesPerObject, 2)</div>
+                            </div>
                         </div>
                     }
+
+                    @* Avg Array Length *@
                     @if (Statistics.ArrayCount > 0)
                     {
-                        <div class="stat-item">
-                            <span class="stat-label">Avg Array Length:</span>
-                            <span class="stat-value">@Math.Round(Statistics.AvgArrayLength, 2)</span>
+                        <div class="stat-card">
+                            <div class="stat-icon icon-average">
+                                <Icon Name="distribute-vertical" Size="24" />
+                            </div>
+                            <div class="stat-info">
+                                <div class="stat-label">Avg Array Length</div>
+                                <div class="stat-value">@Math.Round(Statistics.AvgArrayLength, 2)</div>
+                            </div>
                         </div>
                     }
                 </div>
             </div>
+
+            @* Footer *@
+            <div class="stats-modal-footer">
+                <div class="export-dropdown">
+                    <button class="btn btn-sm btn-primary dropdown-toggle"
+                            type="button"
+                            @onclick="ToggleExportMenu">
+                        <Icon Name="download" Size="14" />
+                        <span class="ms-1">Export</span>
+                    </button>
+                    @if (showExportMenu)
+                    {
+                        <div class="dropdown-menu show">
+                            <a class="dropdown-item" @onclick="() => ExportStatistics(ExportFormat.JSON)">
+                                <Icon Name="filetype-json" Size="14" />
+                                <span class="ms-2">Export as JSON</span>
+                            </a>
+                            <a class="dropdown-item" @onclick="() => ExportStatistics(ExportFormat.CSV)">
+                                <Icon Name="filetype-csv" Size="14" />
+                                <span class="ms-2">Export as CSV</span>
+                            </a>
+                            <a class="dropdown-item" @onclick="() => ExportStatistics(ExportFormat.TXT)">
+                                <Icon Name="filetype-txt" Size="14" />
+                                <span class="ms-2">Export as TXT</span>
+                            </a>
+                        </div>
+                    }
+                </div>
+                <button class="btn btn-sm btn-secondary" @onclick="HandleClose">
+                    Close
+                </button>
+            </div>
         </div>
-    }
+    </div>
 }
 
 @code {
-    [Parameter]
-    public JsonStats? Statistics { get; set; }
+    [Parameter] public JsonStats? Statistics { get; set; }
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public bool IsDarkTheme { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
 
-    [Parameter]
-    public bool IsVisible { get; set; }
+    private bool showExportMenu = false;
+    private DotNetObjectReference<JsonStatistics>? dotNetHelper;
 
-    [Parameter]
-    public bool IsFullScreen { get; set; }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetHelper = DotNetObjectReference.Create(this);
+            await RegisterKeyboardShortcuts();
+        }
+    }
 
-    [Parameter]
-    public EventCallback OnClose { get; set; }
+    private async Task RegisterKeyboardShortcuts()
+    {
+        await JSRuntime.InvokeVoidAsync("eval", @"
+            (function() {
+                if (!window.statsModalKeyHandlerRegistered) {
+                    document.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape') {
+                            const modal = document.querySelector('.stats-modal-overlay');
+                            if (modal) {
+                                const closeBtn = modal.querySelector('.stats-modal-close');
+                                if (closeBtn) {
+                                    closeBtn.click();
+                                }
+                            }
+                        }
+                    });
+                    window.statsModalKeyHandlerRegistered = true;
+                }
+            })();
+        ");
+    }
 
     private async Task HandleClose()
     {
+        showExportMenu = false;
         await OnClose.InvokeAsync();
+    }
+
+    private void HandleOverlayClick()
+    {
+        _ = HandleClose();
+    }
+
+    private void ToggleExportMenu()
+    {
+        showExportMenu = !showExportMenu;
+    }
+
+    public enum ExportFormat
+    {
+        JSON,
+        CSV,
+        TXT
+    }
+
+    private async Task ExportStatistics(ExportFormat format)
+    {
+        if (Statistics == null) return;
+
+        showExportMenu = false;
+        string content = "";
+        string fileName = $"json-statistics-{DateTime.Now:yyyyMMdd-HHmmss}";
+        string mimeType = "";
+
+        switch (format)
+        {
+            case ExportFormat.JSON:
+                content = JsonConvert.SerializeObject(Statistics, Formatting.Indented);
+                fileName += ".json";
+                mimeType = "application/json";
+                break;
+
+            case ExportFormat.CSV:
+                content = GenerateCSV();
+                fileName += ".csv";
+                mimeType = "text/csv";
+                break;
+
+            case ExportFormat.TXT:
+                content = GenerateTXT();
+                fileName += ".txt";
+                mimeType = "text/plain";
+                break;
+        }
+
+        await DownloadFile(fileName, content, mimeType);
+    }
+
+    private string GenerateCSV()
+    {
+        var csv = new System.Text.StringBuilder();
+        csv.AppendLine("Metric,Value");
+        csv.AppendLine($"Total Properties,{Statistics.TotalProperties}");
+        csv.AppendLine($"Objects,{Statistics.ObjectCount}");
+        csv.AppendLine($"Arrays,{Statistics.ArrayCount}");
+        csv.AppendLine($"Strings,{Statistics.StringCount}");
+        csv.AppendLine($"Numbers,{Statistics.NumberCount}");
+        csv.AppendLine($"Booleans,{Statistics.BooleanCount}");
+        csv.AppendLine($"Nulls,{Statistics.NullCount}");
+        csv.AppendLine($"Max Depth,{Statistics.MaxDepth}");
+        csv.AppendLine($"Raw Size,{Statistics.RawSize}");
+        csv.AppendLine($"Formatted Size,{Statistics.FormattedSize}");
+        if (Statistics.ObjectCount > 0)
+            csv.AppendLine($"Avg Props/Object,{Statistics.AvgPropertiesPerObject:F2}");
+        if (Statistics.ArrayCount > 0)
+            csv.AppendLine($"Avg Array Length,{Statistics.AvgArrayLength:F2}");
+        return csv.ToString();
+    }
+
+    private string GenerateTXT()
+    {
+        var txt = new System.Text.StringBuilder();
+        txt.AppendLine("═══════════════════════════════════════");
+        txt.AppendLine("       JSON STATISTICS REPORT");
+        txt.AppendLine("═══════════════════════════════════════");
+        txt.AppendLine($"Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        txt.AppendLine();
+        txt.AppendLine("STRUCTURE:");
+        txt.AppendLine($"  • Total Properties: {Statistics.TotalProperties}");
+        txt.AppendLine($"  • Objects: {Statistics.ObjectCount}");
+        txt.AppendLine($"  • Arrays: {Statistics.ArrayCount}");
+        txt.AppendLine();
+        txt.AppendLine("DATA TYPES:");
+        txt.AppendLine($"  • Strings: {Statistics.StringCount}");
+        txt.AppendLine($"  • Numbers: {Statistics.NumberCount}");
+        txt.AppendLine($"  • Booleans: {Statistics.BooleanCount}");
+        txt.AppendLine($"  • Nulls: {Statistics.NullCount}");
+        txt.AppendLine();
+        txt.AppendLine("METRICS:");
+        txt.AppendLine($"  • Max Depth: {Statistics.MaxDepth}");
+        txt.AppendLine($"  • Raw Size: {FormatBytes(Statistics.RawSize)}");
+        txt.AppendLine($"  • Formatted Size: {FormatBytes(Statistics.FormattedSize)}");
+        if (Statistics.ObjectCount > 0)
+            txt.AppendLine($"  • Avg Props/Object: {Statistics.AvgPropertiesPerObject:F2}");
+        if (Statistics.ArrayCount > 0)
+            txt.AppendLine($"  • Avg Array Length: {Statistics.AvgArrayLength:F2}");
+        txt.AppendLine();
+        txt.AppendLine("═══════════════════════════════════════");
+        return txt.ToString();
+    }
+
+    private async Task DownloadFile(string fileName, string content, string mimeType)
+    {
+        var base64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(content));
+        await JSRuntime.InvokeVoidAsync("eval", $@"
+            (function() {{
+                const byteCharacters = atob('{base64}');
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {{
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }}
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], {{ type: '{mimeType}' }});
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = '{fileName}';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }})();
+        ");
     }
 
     private string FormatBytes(long bytes)
@@ -186,94 +427,443 @@
         }
         return $"{len:0.##} {sizes[order]}";
     }
+
+    public void Dispose()
+    {
+        dotNetHelper?.Dispose();
+    }
 }
 
 <style>
-    /* Horizontal Stats Panel (Normal Mode) */
-    .stats-panel {
-        background-color: #d1ecf1;
-        border-color: #bee5eb;
-        border-radius: 4px;
+    /* #region Modal Overlay */
+    .stats-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.2s ease-out;
+    }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+    /* #endregion */
+
+    /* #region Modal Container */
+    .stats-modal-container {
+        background-color: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        max-width: 900px;
+        width: 90%;
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+        animation: slideUp 0.3s ease-out;
+        overflow: hidden;
+    }
+
+    @@keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .stats-modal-container.dark-theme {
+        background-color: #1e1e1e;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+    }
+    /* #endregion */
+
+    /* #region Modal Header */
+    .stats-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 24px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .dark-theme .stats-modal-header {
+        border-bottom-color: #3c3c3c;
+    }
+
+    .stats-modal-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 20px;
+        font-weight: 600;
+        color: #333;
+    }
+
+    .dark-theme .stats-modal-title {
+        color: #d4d4d4;
+    }
+
+    .stats-modal-close {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 6px;
+        color: #666;
+        transition: all 0.2s ease;
+    }
+
+        .stats-modal-close:hover {
+            background-color: #f0f0f0;
+            color: #dc3545;
+        }
+
+    .dark-theme .stats-modal-close {
+        color: #d4d4d4;
+    }
+
+        .dark-theme .stats-modal-close:hover {
+            background-color: #3c3c3c;
+            color: #f48771;
+        }
+    /* #endregion */
+
+    /* #region Chart Section */
+    .stats-chart-section {
+        padding: 20px 24px;
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .dark-theme .stats-chart-section {
+        background-color: #252526;
+        border-bottom-color: #3c3c3c;
+    }
+
+    .chart-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 15px;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .dark-theme .chart-title {
+        color: #d4d4d4;
+    }
+
+    .stats-pie-chart {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 30px;
+        flex-wrap: wrap;
+    }
+
+    .pie-chart {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transition: transform 0.3s ease;
+        flex-shrink: 0;
+    }
+
+        .pie-chart:hover {
+            transform: scale(1.05);
+        }
+
+    .chart-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
         font-size: 13px;
+    }
+
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 3px;
+        flex-shrink: 0;
+    }
+
+    .legend-label {
+        color: #495057;
+        font-family: 'Consolas', 'Monaco', monospace;
+    }
+
+    .dark-theme .legend-label {
+        color: #d4d4d4;
+    }
+    /* #endregion */
+
+    /* #region Modal Content */
+    .stats-modal-content {
+        padding: 24px;
+        overflow-y: auto;
+        flex: 1;
     }
 
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 10px;
-        margin-top: 10px;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 16px;
+    }
+    /* #endregion */
+
+    /* #region Stat Cards */
+    .stat-card {
+        background-color: #f8f9fa;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        transition: all 0.2s ease;
     }
 
-    .stat-item {
+        .stat-card:hover {
+            border-color: #007bff;
+            box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+            transform: translateY(-2px);
+        }
+
+    .dark-theme .stat-card {
+        background-color: #2d2d30;
+        border-color: #3c3c3c;
+    }
+
+        .dark-theme .stat-card:hover {
+            border-color: #007acc;
+            box-shadow: 0 4px 12px rgba(0, 122, 204, 0.25);
+        }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
         display: flex;
-        justify-content: space-between;
-        padding: 5px 0;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .icon-properties {
+        background-color: rgba(156, 220, 254, 0.2);
+        color: #9cdcfe;
+    }
+
+    .icon-objects {
+        background-color: rgba(206, 145, 120, 0.2);
+        color: #ce9178;
+    }
+
+    .icon-arrays {
+        background-color: rgba(78, 201, 176, 0.2);
+        color: #4ec9b0;
+    }
+
+    .icon-strings {
+        background-color: rgba(206, 145, 120, 0.2);
+        color: #ce9178;
+    }
+
+    .icon-numbers {
+        background-color: rgba(181, 206, 168, 0.2);
+        color: #b5cea8;
+    }
+
+    .icon-booleans {
+        background-color: rgba(86, 156, 214, 0.2);
+        color: #569cd6;
+    }
+
+    .icon-nulls {
+        background-color: rgba(128, 128, 128, 0.2);
+        color: #808080;
+    }
+
+    .icon-depth {
+        background-color: rgba(197, 134, 192, 0.2);
+        color: #c586c0;
+    }
+
+    .icon-size {
+        background-color: rgba(220, 220, 170, 0.2);
+        color: #dcdcaa;
+    }
+
+    .icon-average {
+        background-color: rgba(79, 193, 255, 0.2);
+        color: #4fc1ff;
+    }
+
+    .stat-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
     }
 
     .stat-label {
-        font-weight: 600;
-        color: #0c5460;
+        font-size: 12px;
+        font-weight: 500;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .dark-theme .stat-label {
+        color: #858585;
     }
 
     .stat-value {
-        font-weight: bold;
-        color: #004085;
+        font-size: 24px;
+        font-weight: 700;
+        color: #0d6efd;
+        font-family: 'Consolas', 'Monaco', monospace;
     }
 
-    /* Vertical Stats Panel (Full Screen Mode) */
-    .stats-panel-vertical {
-        position: fixed;
-        right: 0;
-        top: 0;
-        width: 250px;
-        height: 100vh;
-        background-color: #f8f9fa;
-        border-left: 2px solid #dee2e6;
-        z-index: 1050;
-        overflow-y: auto;
-        box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+    .dark-theme .stat-value {
+        color: #4fc1ff;
     }
+    /* #endregion */
 
-    .stats-header {
-        background-color: #e9ecef;
-        border-bottom: 1px solid #dee2e6;
-        position: sticky;
-        top: 0;
-        z-index: 1;
-    }
-
-    .stats-list {
+    /* #region Modal Footer */
+    .stats-modal-footer {
+        padding: 16px 24px;
+        border-top: 1px solid #e0e0e0;
         display: flex;
-        flex-direction: column;
+        justify-content: flex-end;
+        gap: 10px;
     }
 
-        .stats-list .stat-item {
+    .dark-theme .stats-modal-footer {
+        border-top-color: #3c3c3c;
+    }
+
+    .export-dropdown {
+        position: relative;
+    }
+
+        .export-dropdown .dropdown-menu {
+            position: absolute;
+            bottom: 100%;
+            left: 0;
+            margin-bottom: 5px;
+            background-color: #ffffff;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 200px;
             padding: 8px 0;
+            z-index: 1000;
         }
 
-    /* Dark Theme Support */
-    .json-viewer-container.dark-theme .stats-panel {
-        background-color: #1e3a4f;
-        border-color: #2c5066;
-        color: #e0e0e0;
+    .dark-theme .export-dropdown .dropdown-menu {
+        background-color: #2d2d30;
+        border-color: #3c3c3c;
     }
 
-    .json-viewer-container.dark-theme .stat-label {
-        color: #9fc8e0;
+    .export-dropdown .dropdown-item {
+        display: flex;
+        align-items: center;
+        padding: 10px 16px;
+        cursor: pointer;
+        color: #333;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        border: none;
+        background: transparent;
+        width: 100%;
+        text-align: left;
     }
 
-    .json-viewer-container.dark-theme .stat-value {
-        color: #4fc3f7;
+        .export-dropdown .dropdown-item:hover {
+            background-color: #f8f9fa;
+        }
+
+    .dark-theme .export-dropdown .dropdown-item {
+        color: #d4d4d4;
     }
 
-    .json-viewer-container.dark-theme .stats-panel-vertical {
-        background-color: #1a1a1a;
-        border-left-color: #333;
-        color: #e0e0e0;
+        .dark-theme .export-dropdown .dropdown-item:hover {
+            background-color: #3c3c3c;
+        }
+    /* #endregion */
+
+    /* #region Scrollbar */
+    .stats-modal-content::-webkit-scrollbar {
+        width: 8px;
     }
 
-    .json-viewer-container.dark-theme .stats-header {
-        background-color: #2a2a2a;
-        border-bottom-color: #444;
+    .stats-modal-content::-webkit-scrollbar-track {
+        background: #f1f1f1;
     }
+
+    .stats-modal-content::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+    }
+
+        .stats-modal-content::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+
+    .dark-theme .stats-modal-content::-webkit-scrollbar-track {
+        background: #1e1e1e;
+    }
+
+    .dark-theme .stats-modal-content::-webkit-scrollbar-thumb {
+        background: #424242;
+    }
+
+        .dark-theme .stats-modal-content::-webkit-scrollbar-thumb:hover {
+            background: #4e4e4e;
+        }
+    /* #endregion */
+
+    /* #region Responsive */
+    @@media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .stats-modal-container {
+            width: 95%;
+            max-height: 90vh;
+        }
+
+        .stats-pie-chart {
+            flex-direction: column;
+            gap: 20px;
+        }
+    }
+    /* #endregion */
 </style>

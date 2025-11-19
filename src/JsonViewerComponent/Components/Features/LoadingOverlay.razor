@@ -1,0 +1,308 @@
+﻿@* LoadingOverlay.razor - Enhanced Loading Component *@
+
+@if (IsVisible)
+{
+    <div class="loading-overlay @(IsDarkTheme ? "dark-theme" : "")" @onclick:stopPropagation>
+        <div class="loading-content">
+            @* Modern Spinner *@
+            <div class="loading-spinner">
+                <div class="spinner-circle"></div>
+                <div class="spinner-circle"></div>
+                <div class="spinner-circle"></div>
+                <div class="spinner-circle"></div>
+            </div>
+
+            @* Message *@
+            @if (!string.IsNullOrEmpty(Message))
+            {
+                <div class="loading-message">@Message</div>
+            }
+
+            @* Progress (Optional) *@
+            @if (ShowProgress && Progress > 0)
+            {
+                <div class="loading-progress-container">
+                    <div class="loading-progress-bar">
+                        <div class="loading-progress-fill" style="width: @(Progress)%"></div>
+                    </div>
+                    <div class="loading-progress-text">@Progress%</div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsVisible { get; set; }
+    [Parameter] public bool IsDarkTheme { get; set; }
+    [Parameter] public string Message { get; set; } = "Processing...";
+    [Parameter] public bool ShowProgress { get; set; } = false;
+    [Parameter] public int Progress { get; set; } = 0;
+}
+
+<style>
+    /* #region Loading Overlay - Enhanced */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.75);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: overlayFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+        .loading-overlay.dark-theme {
+            background: rgba(30, 30, 30, 0.85);
+        }
+
+    @@keyframes overlayFadeIn {
+        from {
+            opacity: 0;
+            backdrop-filter: blur(0px);
+        }
+
+        to {
+            opacity: 1;
+            backdrop-filter: blur(12px);
+        }
+    }
+    /* #endregion */
+
+    /* #region Loading Content */
+    .loading-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 28px;
+        padding: 40px;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+        animation: contentSlideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+    }
+
+    .dark-theme .loading-content {
+        background: rgba(45, 45, 48, 0.98);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    @@keyframes contentSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px) scale(0.95);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+    /* #endregion */
+
+    /* #region Modern Spinner */
+    .loading-spinner {
+        position: relative;
+        width: 60px;
+        height: 60px;
+    }
+
+    .spinner-circle {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        border: 3px solid transparent;
+        border-radius: 50%;
+        animation: spinRotate 1.5s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+    }
+
+        .spinner-circle:nth-child(1) {
+            border-top-color: #007bff;
+            animation-delay: -0.45s;
+        }
+
+        .spinner-circle:nth-child(2) {
+            border-right-color: #0056b3;
+            animation-delay: -0.3s;
+        }
+
+        .spinner-circle:nth-child(3) {
+            border-bottom-color: #004085;
+            animation-delay: -0.15s;
+        }
+
+        .spinner-circle:nth-child(4) {
+            border-left-color: #007bff;
+            animation-delay: 0s;
+        }
+
+    .dark-theme .spinner-circle:nth-child(1) {
+        border-top-color: #4fc1ff;
+    }
+
+    .dark-theme .spinner-circle:nth-child(2) {
+        border-right-color: #2d9cdb;
+    }
+
+    .dark-theme .spinner-circle:nth-child(3) {
+        border-bottom-color: #007acc;
+    }
+
+    .dark-theme .spinner-circle:nth-child(4) {
+        border-left-color: #4fc1ff;
+    }
+
+    @@keyframes spinRotate {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+    /* #endregion */
+
+    /* #region Loading Message */
+    .loading-message {
+        font-size: 16px;
+        font-weight: 500;
+        color: #2c3e50;
+        text-align: center;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        letter-spacing: 0.3px;
+        animation: messageFade 0.5s ease-out 0.2s both;
+    }
+
+    .dark-theme .loading-message {
+        color: #e0e0e0;
+    }
+
+    @@keyframes messageFade {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    /* #endregion */
+
+    /* #region Progress Bar - Enhanced */
+    .loading-progress-container {
+        width: 280px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        animation: progressFade 0.6s ease-out 0.3s both;
+    }
+
+    .loading-progress-bar {
+        width: 100%;
+        height: 6px;
+        background-color: rgba(0, 0, 0, 0.08);
+        border-radius: 10px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .dark-theme .loading-progress-bar {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .loading-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #007bff 0%, #0056b3 50%, #007bff 100%);
+        background-size: 200% 100%;
+        border-radius: 10px;
+        transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: progressShine 2s ease-in-out infinite;
+        box-shadow: 0 0 10px rgba(0, 123, 255, 0.4);
+    }
+
+    .dark-theme .loading-progress-fill {
+        background: linear-gradient(90deg, #4fc1ff 0%, #007acc 50%, #4fc1ff 100%);
+        background-size: 200% 100%;
+        box-shadow: 0 0 10px rgba(79, 193, 255, 0.5);
+    }
+
+    @@keyframes progressShine {
+        0%, 100% {
+            background-position: 0% 50%;
+        }
+
+        50% {
+            background-position: 100% 50%;
+        }
+    }
+
+    @@keyframes progressFade {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .loading-progress-text {
+        text-align: center;
+        font-size: 14px;
+        font-weight: 600;
+        color: #007bff;
+        font-family: 'Consolas', 'Monaco', monospace;
+        letter-spacing: 1px;
+    }
+
+    .dark-theme .loading-progress-text {
+        color: #4fc1ff;
+    }
+    /* #endregion */
+
+    /* #region Responsive */
+    @@media (max-width: 768px) {
+        .loading-content {
+            padding: 32px 24px;
+            gap: 24px;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+        }
+
+        .loading-message {
+            font-size: 15px;
+        }
+
+        .loading-progress-container {
+            width: 240px;
+        }
+    }
+
+    @@media (max-width: 480px) {
+        .loading-content {
+            padding: 28px 20px;
+            border-radius: 12px;
+        }
+
+        .loading-progress-container {
+            width: 200px;
+        }
+    }
+    /* #endregion */
+</style>

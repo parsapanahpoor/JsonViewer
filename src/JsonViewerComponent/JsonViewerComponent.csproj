@@ -1,35 +1,115 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
 
 	<PropertyGroup>
-		<TargetFramework>net7.0</TargetFramework>
+		<!-- 🎯 Target Frameworks -->
+		<TargetFrameworks>net6.0;net7.0;net8.0</TargetFrameworks>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
+		<LangVersion>latest</LangVersion>
 
-		<!-- Package Info -->
-		<PackageId>JsonViewerComponent</PackageId>
-		<Version>1.0.0</Version>
-		<Authors>Your Name</Authors>
-		<Company>Your Company</Company>
-		<Description>Advanced JSON Viewer Component for Blazor with search, filtering, statistics, and more</Description>
-		<PackageTags>blazor;json;viewer;component;blazor-component</PackageTags>
+		<!-- 📦 Package Identity -->
+		<PackageId>JsonViewer.Blazor</PackageId>
+		<Title>JSON Viewer Component for Blazor</Title>
+		<Product>JsonViewer.Blazor</Product>
+		<Version>0.0.2-beta</Version>
+		<AssemblyVersion>0.0.2.0</AssemblyVersion>
+		<FileVersion>0.0.2.0</FileVersion>
+
+		<!-- 👤 Author Information -->
+		<Authors>Parsa Panahpoor</Authors>
+		<Company>JsonViewer Component</Company>
+		<Copyright>Copyright © 2025 JsonViewer Component</Copyright>
+
+		<!-- 📝 Package Description -->
+		<Description>
+			🚀 A powerful and feature-rich JSON Viewer component for Blazor applications.
+
+			✨ Features:
+			• VS Code-style syntax highlighting with dark/light themes
+			• Real-time search with highlighting and navigation
+			• Expand/collapse JSON nodes with smooth animations
+			• JSON statistics (size, depth, type counts)
+			• Copy, export, and download functionality
+			• Fully responsive and mobile-friendly
+			• Edit mode with auto-formatting
+			• Line numbers with active line highlighting
+			• Keyboard shortcuts support
+			• Zero dependencies (uses Newtonsoft.Json)
+
+			Perfect for debugging, API testing, and data visualization!
+		</Description>
+
+		<PackageTags>blazor;json;viewer;component;syntax-highlighting;json-editor;json-formatter;vscode-style;blazor-component;webassembly;blazor-server;json-parser;json-statistics;dark-theme;light-theme</PackageTags>
+
+		<!-- 🔗 Links -->
+		<PackageProjectUrl>https://github.com/JsonViewer-Component/Blazor</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/JsonViewer-Component/Blazor</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<RepositoryUrl>https://github.com/yourusername/JsonViewerComponent</RepositoryUrl>
-		<PackageProjectUrl>https://github.com/yourusername/JsonViewerComponent</PackageProjectUrl>
+		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+
+		<!-- 📖 Documentation -->
 		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageReleaseNotes>
+			🎉 Version 0.0.2-beta - Beta Release
+
+			✨ New Features:
+			• VS Code-style JSON viewer with syntax highlighting
+			• Search functionality with match navigation (Enter/Shift+Enter)
+			• Expand/collapse all nodes
+			• JSON statistics panel with detailed metrics
+			• Theme toggle (Dark/Light) with localStorage persistence
+			• Copy and export capabilities
+			• Edit mode with auto-formatting and validation
+			• Responsive design for mobile and tablet
+			• Active line highlighting
+			• Smooth scroll navigation
+
+			🐛 Bug Fixes:
+			• Improved performance for large JSON files
+			• Fixed search highlighting edge cases
+			• Enhanced theme switching smoothness
+
+			📚 Documentation: https://github.com/JsonViewer-Component/Blazor#readme
+			🐛 Report Issues: https://github.com/JsonViewer-Component/Blazor/issues
+			💬 Discussions: https://github.com/JsonViewer-Component/Blazor/discussions
+		</PackageReleaseNotes>
+
+		<!-- 🖼️ Package Icon -->
+		<PackageIcon>logo.png</PackageIcon>
+
+		<!-- 📄 Generate Documentation -->
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<NoWarn>$(NoWarn);1591</NoWarn>
+
+		<!-- 🏗️ Build Settings -->
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+		<IncludeSymbols>true</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 	</PropertyGroup>
 
+	<!-- 📦 Package Files -->
+	<ItemGroup>
+		<None Include="..\..\README.md" Pack="true" PackagePath="\" />
+		<None Include="..\..\logo.png" Pack="true" PackagePath="\" />
+	</ItemGroup>
+
+	<!-- 🎨 Supported Platforms -->
 	<ItemGroup>
 		<SupportedPlatform Include="browser" />
 	</ItemGroup>
 
+	<!-- 📚 Dependencies -->
 	<ItemGroup>
-		<PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="7.0.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="6.0.0" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 	</ItemGroup>
 
+	<!-- 🔧 Source Link Support -->
 	<ItemGroup>
-		<None Include="..\..\README.md" Pack="true" PackagePath="\" />
+		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
 	</ItemGroup>
 
 </Project>

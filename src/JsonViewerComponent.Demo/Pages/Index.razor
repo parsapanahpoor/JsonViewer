@@ -1,39 +1,228 @@
 ﻿@page "/"
+@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
 
 <PageTitle>JSON Viewer Demo</PageTitle>
 
-<h1>JSON Viewer Component Demo</h1>
-
-<div class="row mt-4">
-    <div class="col-md-12">
-        <label>JSON Input:</label>
-        <textarea @bind="jsonInput" class="form-control" rows="10"></textarea>
-        <button @onclick="UpdateJson" class="btn btn-primary mt-2">Load JSON</button>
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center my-3">
+        <h1>JSON Viewer Component Demo</h1>
     </div>
-    
-    <div class="col-md-12">
-        <JsonViewer JsonData="@currentJson" 
-                    Title="My JSON Viewer"
-                    EmptyMessage="Please load some JSON" />
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <JsonViewer JsonData="@sampleJson"
+                        IsEditable="true" />
+        </div>
     </div>
 </div>
 
 @code {
-    private string jsonInput = @"{
-        ""name"": ""Test"",
-        ""value"": 123,
-        ""items"": [1, 2, 3]
-    }";
-    
-    private string currentJson = "";
+    private bool isAppDarkTheme = false;
+    private string appThemeValue = "light";
+    private string jsonViewerThemeValue = "light";
 
-    private void UpdateJson()
+    // 🔥 JSON سمپل برای تست
+    private string sampleJson = @"{
+  ""company"": {
+    ""name"": ""Tech Solutions Inc."",
+    ""founded"": 2015,
+    ""employees"": 250,
+    ""active"": true,
+    ""headquarters"": {
+      ""city"": ""San Francisco"",
+      ""country"": ""USA"",
+      ""address"": {
+        ""street"": ""123 Innovation Drive"",
+        ""zipCode"": ""94102"",
+        ""coordinates"": {
+          ""latitude"": 37.7749,
+          ""longitude"": -122.4194
+        }
+      }
+    },
+    ""departments"": [
+      {
+        ""id"": 1,
+        ""name"": ""Engineering"",
+        ""budget"": 5000000,
+        ""manager"": {
+          ""name"": ""Alice Johnson"",
+          ""email"": ""alice.johnson@techsolutions.com"",
+          ""hired"": ""2016-03-15""
+        },
+        ""teams"": [
+          {
+            ""name"": ""Backend"",
+            ""members"": 15,
+            ""technologies"": [""C#"", "".NET"", ""SQL Server"", ""Redis""]
+          },
+          {
+            ""name"": ""Frontend"",
+            ""members"": 12,
+            ""technologies"": [""React"", ""TypeScript"", ""Blazor"", ""Tailwind CSS""]
+          },
+          {
+            ""name"": ""DevOps"",
+            ""members"": 8,
+            ""technologies"": [""Docker"", ""Kubernetes"", ""Azure"", ""GitHub Actions""]
+          }
+        ]
+      },
+      {
+        ""id"": 2,
+        ""name"": ""Sales"",
+        ""budget"": 2500000,
+        ""manager"": {
+          ""name"": ""Bob Smith"",
+          ""email"": ""bob.smith@techsolutions.com"",
+          ""hired"": ""2017-06-20""
+        },
+        ""teams"": [
+          {
+            ""name"": ""Enterprise"",
+            ""members"": 20,
+            ""regions"": [""North America"", ""Europe"", ""Asia Pacific""]
+          },
+          {
+            ""name"": ""SMB"",
+            ""members"": 15,
+            ""regions"": [""North America"", ""Latin America""]
+          }
+        ]
+      },
+      {
+        ""id"": 3,
+        ""name"": ""HR"",
+        ""budget"": 1000000,
+        ""manager"": {
+          ""name"": ""Carol Davis"",
+          ""email"": ""carol.davis@techsolutions.com"",
+          ""hired"": ""2015-11-01""
+        },
+        ""teams"": []
+      }
+    ],
+    ""products"": [
+      {
+        ""productId"": ""PRD-001"",
+        ""name"": ""Cloud Platform"",
+        ""version"": ""3.2.1"",
+        ""pricing"": {
+          ""currency"": ""USD"",
+          ""plans"": [
+            {
+              ""tier"": ""Starter"",
+              ""price"": 49.99,
+              ""features"": [""5 Users"", ""10GB Storage"", ""Email Support""]
+            },
+            {
+              ""tier"": ""Professional"",
+              ""price"": 149.99,
+              ""features"": [""25 Users"", ""100GB Storage"", ""Priority Support"", ""API Access""]
+            },
+            {
+              ""tier"": ""Enterprise"",
+              ""price"": 499.99,
+              ""features"": [""Unlimited Users"", ""1TB Storage"", ""24/7 Support"", ""Custom Integrations"", ""SLA 99.9%""]
+            }
+          ]
+        },
+        ""reviews"": [
+          {
+            ""userId"": ""USR-4521"",
+            ""rating"": 5,
+            ""comment"": ""Excellent platform! Very reliable."",
+            ""date"": ""2025-10-15""
+          },
+          {
+            ""userId"": ""USR-7834"",
+            ""rating"": 4,
+            ""comment"": ""Great features, but pricing could be better."",
+            ""date"": ""2025-11-02""
+          }
+        ]
+      },
+      {
+        ""productId"": ""PRD-002"",
+        ""name"": ""Analytics Dashboard"",
+        ""version"": ""2.0.5"",
+        ""pricing"": {
+          ""currency"": ""USD"",
+          ""plans"": [
+            {
+              ""tier"": ""Basic"",
+              ""price"": 29.99,
+              ""features"": [""10 Dashboards"", ""Standard Reports""]
+            },
+            {
+              ""tier"": ""Advanced"",
+              ""price"": 99.99,
+              ""features"": [""50 Dashboards"", ""Custom Reports"", ""Data Export"", ""Real-time Updates""]
+            }
+          ]
+        },
+        ""reviews"": []
+      }
+    ],
+    ""metadata"": {
+      ""lastUpdated"": ""2025-11-15T10:30:00Z"",
+      ""version"": ""1.0.0"",
+      ""environment"": ""production"",
+      ""maintainers"": [
+        ""admin@techsolutions.com"",
+        ""devops@techsolutions.com""
+      ],
+      ""tags"": [""enterprise"", ""saas"", ""cloud"", ""b2b""],
+      ""nullField"": null
+    }
+  }
+}";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        currentJson = jsonInput;
+        if (firstRender)
+        {
+            await LoadThemes();
+            StateHasChanged();
+        }
     }
 
-    protected override void OnInitialized()
+    private async Task LoadThemes()
     {
-        currentJson = jsonInput;
+        try
+        {
+            appThemeValue = await JSRuntime.InvokeAsync<string>(
+                "localStorage.getItem", "app-theme") ?? "light";
+
+            isAppDarkTheme = appThemeValue == "dark";
+
+            jsonViewerThemeValue = await JSRuntime.InvokeAsync<string>(
+                "localStorage.getItem", "json-viewer-theme") ?? "light";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading themes: {ex.Message}");
+        }
+    }
+
+    private async Task ToggleAppTheme()
+    {
+        isAppDarkTheme = !isAppDarkTheme;
+        appThemeValue = isAppDarkTheme ? "dark" : "light";
+
+        try
+        {
+            await JSRuntime.InvokeVoidAsync(
+                "localStorage.setItem", "app-theme", appThemeValue);
+
+            await Task.Delay(100);
+            await LoadThemes();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error toggling app theme: {ex.Message}");
+        }
     }
 }

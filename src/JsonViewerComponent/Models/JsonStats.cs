@@ -18,6 +18,7 @@ public class JsonStats
     public int TotalStringLength { get; set; }
     public int MaxStringLength { get; set; }
     public int TotalNumberLength { get; set; }
+    public int TotalArrayElements { get; set; }
     public Dictionary<string, int> PropertyCounts { get; set; } = new Dictionary<string, int>();
 
 }
