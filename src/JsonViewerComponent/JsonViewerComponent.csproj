@@ -92,10 +92,10 @@
 
 	<!-- 📦 Package Files -->
 	<ItemGroup>
-		<None Include="..\..\README.md" Pack="true" PackagePath="\" />
-		<None Include="..\..\logo.png" Pack="true" PackagePath="\" />
+		<None Include="README.md" Pack="true" PackagePath="\" />
+		<None Include="logo.png" Pack="true" PackagePath="\" />
 	</ItemGroup>
-
+	
 	<!-- 🎨 Supported Platforms -->
 	<ItemGroup>
 		<SupportedPlatform Include="browser" />
@@ -110,6 +110,9 @@
 	<!-- 🔧 Source Link Support -->
 	<ItemGroup>
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+	</ItemGroup>
+	<ItemGroup>
+	  <Folder Include="wwwroot\" />
 	</ItemGroup>
 
 </Project>
